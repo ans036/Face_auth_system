@@ -5,51 +5,64 @@ const captureBtn = document.getElementById('captureBtn');
 let isProcessing = false;
 const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
 
-navigator.mediaDevices.getUserMedia({ video: true }).then(s => {
+// Initialize Camera
+navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } }).then(s => {
     video.srcObject = s;
-    setInterval(() => processFrame(false), 300); // Live loop (isManual = false)
+    setInterval(() => { if(!isProcessing) processFrame(false); }, 400); 
 });
 
-captureBtn.addEventListener('click', () => processFrame(true));
+// Manual Capture Button
+captureBtn.addEventListener('click', () => {
+    console.log("Manual verification triggered...");
+    processFrame(true);
+});
 
 async function processFrame(isManual) {
-    if (isProcessing && !isManual) return;
-    if (isManual) isProcessing = true;
+    if (isManual) isProcessing = true; // Block live stream during manual verify
 
-    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth; 
+    canvas.height = video.videoHeight;
     ctx.drawImage(video, 0, 0);
     
     canvas.toBlob(async (blob) => {
         const formData = new FormData();
-        formData.append('file', blob);
-        formData.append('is_manual', isManual); // Tell backend to log this
+        formData.append('file', blob, 'capture.jpg');
+        formData.append('is_manual', isManual); // Sends "true" or "false" string
 
         try {
             const res = await fetch(`${apiBaseUrl}/identify/`, { method: 'POST', body: formData });
             const data = await res.json();
             
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
             if (data.status === "success" && data.matches.length > 0) {
                 const m = data.matches[0];
                 const isKnown = m.name !== "Unknown";
                 
-                // Trigger Alarm if Unknown
-                if (!isKnown) alarm.play();
+                // 🔊 ALARM: Only play if Subject is Unknown
+                if (!isKnown) {
+                    alarm.currentTime = 0; // Reset sound to start
+                    alarm.play().catch(e => console.warn("Audio blocked by browser policy"));
+                }
 
-                // Draw Box & Probability
-                ctx.strokeStyle = isKnown ? '#00ff9d' : '#ff3333';
+                // 🎨 DRAWING
+                const color = isKnown ? '#00ff9d' : '#ff3333';
+                ctx.strokeStyle = color;
                 ctx.lineWidth = 4;
+                // m.box is [y1, x1, y2, x2]
                 ctx.strokeRect(m.box[1], m.box[0], m.box[3]-m.box[1], m.box[2]-m.box[0]);
                 
-                ctx.fillStyle = isKnown ? '#00ff9d' : '#ff3333';
-                ctx.font = "bold 18px Arial";
-                ctx.fillText(`${m.name}: ${(m.score * 100).toFixed(1)}%`, m.box[1], m.box[0] - 10);
+                ctx.fillStyle = color;
+                ctx.font = "bold 20px monospace";
+                ctx.fillText(`${m.name.toUpperCase()}: ${(m.score * 100).toFixed(1)}%`, m.box[1], m.box[0] - 10);
                 
-                statusText.innerText = isKnown ? `MATCH: ${m.name}` : "UNAUTHORIZED SUBJECT DETECTED";
-                statusText.style.color = ctx.fillStyle;
+                statusText.innerText = isKnown ? `SYSTEM: AUTHENTICATED [${m.name}]` : "SYSTEM ALERT: UNAUTHORIZED SUBJECT";
+                statusText.style.color = color;
             }
+        } catch (err) {
+            statusText.innerText = "SERVER COMMUNICATION ERROR";
         } finally {
-            if (isManual) setTimeout(() => isProcessing = false, 1000);
+            if (isManual) setTimeout(() => { isProcessing = false; }, 1500);
         }
-    }, 'image/jpeg');
+    }, 'image/jpeg', 0.9);
 }
