@@ -1,0 +1,12 @@
+liveness:
+  min_frames: 15
+  require_motion: true
+
+replay_protection:
+  max_time_window_sec: 5
+
+logging:
+  audit_enabled: true
+  security_log: security.log
+unlock_file: unlocked.txt
+database_gallery_dir: database

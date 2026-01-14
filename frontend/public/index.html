@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Face Authentication - Identify</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Face Authentication — Identify</h1>
+
+  <div id="controls">
+    <button id="identifyBtn">Identify</button>
+    <button id="refreshUnlock">Refresh Unlock Status</button>
+  </div>
+
+  <video id="video" autoplay playsinline></video>
+  <canvas id="canvas" style="display:none;"></canvas>
+
+  <pre id="result">Press Identify to capture and identify the face in front of your webcam.</pre>
+
+  <script src="app.js"></script>
+</body>
+</html>
