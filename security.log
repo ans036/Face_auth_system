@@ -178,3 +178,11 @@
 2026-01-14 07:42:06,827 - {"timestamp": 1768376526.8270283, "username": null, "success": false, "score": 0.10456466674804688, "reason": "unknown_person_access_denied"}
 2026-01-14 07:42:07,443 - {"timestamp": 1768376527.4435554, "username": "Anish", "success": true, "score": 0.26016098260879517, "reason": "access_granted"}
 2026-01-14 07:42:07,739 - {"timestamp": 1768376527.7390602, "username": "Anish", "success": true, "score": 0.2798357605934143, "reason": "access_granted"}
+[1768393599] MANUAL CAPTURE: Unknown | Score: 0.5482 | File: Unknown_1768393599_score_54.jpg
+[1768395052] MANUAL CAPTURE: Anish | Score: 0.6393 | File: Anish_1768395052_score_63.jpg
+[1768395055] MANUAL CAPTURE: Unknown | Score: 0.5750 | File: Unknown_1768395055_score_57.jpg
+[1768398094] MANUAL CAPTURE: Sayani | Score: 0.6511 | File: Sayani_1768398094_score_65.jpg
+[1768398098] MANUAL CAPTURE: Unknown | Score: 0.4088 | File: Unknown_1768398098_score_40.jpg
+[1768408661] MANUAL CAPTURE: Sayani | Score: 0.7651 | File: Sayani_1768408661_score_76.jpg
+[1768408664] MANUAL CAPTURE: Unknown | Score: 0.5024 | File: Unknown_1768408664_score_50.jpg
+[1768408793] MANUAL CAPTURE: Anish | Score: 0.7073 | File: Anish_1768408793_score_70.jpg

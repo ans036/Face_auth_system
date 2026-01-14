@@ -64,5 +64,4 @@ def save_event_to_log(image, name, score):
     
     # Write to text log
     with open("/app/security.log", "a") as f:
-        f.write(f"[{timestamp}] MANUAL CAPTURE: {name} | Score: {score:.4f} | File: {filename}\n")
-        f.flush()# Force write to disk
+        f.write(f"[{timestamp}] ALERT: Unauthorized attempt detected. Score: {score:.2f}. Image saved to {filename}\n")
