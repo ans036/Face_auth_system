@@ -9,7 +9,7 @@ python-multipart
 cryptography
 matplotlib
 tqdm
-mediapipe==0.10.14
+mediapipe
 requests
 pillow
 PyYAML

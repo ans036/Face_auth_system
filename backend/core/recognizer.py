@@ -1,29 +1,39 @@
 import numpy as np
 from db.crud import get_all_gallery
-from sklearn.metrics.pairwise import cosine_similarity
-import os
-
-THRESHOLD = float(os.environ.get("IDENTIFICATION_THRESHOLD", 0.15))
 
 class Recognizer:
-    def __init__(self, threshold=THRESHOLD):
-        self.threshold = float(threshold)
+    def __init__(self, threshold=0.60): # Increase threshold to 0.60 for better security
+        self.threshold = threshold
+        self.gallery = []
+        self.load_gallery()
 
-    def identify(self, probe_embedding: np.ndarray):
-        """
-        Returns (username, score) or (None, best_score)
-        """
-        gallery = get_all_gallery()  # returns list of dicts: {"username":..., "embedding": np.array}
-        if not gallery:
-            return None, 0.0
+    def load_gallery(self):
+        self.gallery = get_all_gallery()
 
-        names = [g["username"] for g in gallery]
-        embs = [g["embedding"] for g in gallery]
-        embs = np.vstack(embs)
-        scores = cosine_similarity([probe_embedding], embs)[0]
-        best_idx = int(np.argmax(scores))
-        best_score = float(scores[best_idx])
+    def identify(self, probe_emb):
+        if not self.gallery:
+            return "Unknown", 0.0
+
+        best_score = -1.0
+        best_name = "Unknown"
+
+        # 1. Normalize the incoming probe vector (the face in front of the camera)
+        probe_emb = probe_emb / np.linalg.norm(probe_emb)
+
+        for entry in self.gallery:
+            # 2. Extract and normalize the stored gallery vector
+            target_emb = np.frombuffer(entry["embedding"], dtype=np.float32)
+            target_emb = target_emb / np.linalg.norm(target_emb)
+            
+            # 3. Calculate Cosine Similarity (Result will be between -1.0 and 1.0)
+            score = np.dot(target_emb, probe_emb)
+            
+            if score > best_score:
+                best_score = score
+                best_name = entry["username"]
+
+        # 4. Apply strict thresholding to distinguish you from your friend
         if best_score >= self.threshold:
-            return names[best_idx], best_score
-        else:
-            return None, best_score
+            return best_name, float(best_score)
+        
+        return "Unknown", float(best_score)

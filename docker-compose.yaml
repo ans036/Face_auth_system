@@ -11,6 +11,7 @@ services:
       - ./config:/app/config
       - ./database:/app/database
       - ./security.log:/app/security.log
+      - ./unauthorized_attempts:/app/unauthorized_attempts
     restart: always
 
   frontend:

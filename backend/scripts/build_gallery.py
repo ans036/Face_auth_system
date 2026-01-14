@@ -1,46 +1,41 @@
 import os
 import cv2
 import numpy as np
+from core.detector import FaceDetector
 from core.embedder import FaceEmbedder
 from db.crud import create_gallery_entry, clear_gallery
-from config_loader import load_config
-from tqdm import tqdm
+from utils.image import read_image, crop_box
+from utils.allignment import align_face
 
-def build_gallery(database_root = "/app/database"):
-    """
-    Scans database_root/<username>/*.jpg and builds averaged embeddings for each username.
-    """
-    embedder = FaceEmbedder()
-    users = [d for d in os.listdir(database_root) if os.path.isdir(os.path.join(database_root, d))]
+detector = FaceDetector()
+embedder = FaceEmbedder()
+
+def build_gallery(database_root="/app/database"):
+    print(f"Building Multi-Template Gallery from {database_root}...")
     clear_gallery()
+    
+    users = [d for d in os.listdir(database_root) if os.path.isdir(os.path.join(database_root, d))]
     for user in users:
         user_dir = os.path.join(database_root, user)
-        images = [os.path.join(user_dir, f) for f in os.listdir(user_dir)
-                  if f.lower().endswith((".jpg", ".jpeg", ".png"))]
-        if not images:
-            continue
-        embs = []
-        for p in images:
-            img = cv2.imread(p)
-            if img is None:
-                print(f"Warning: could not read {p}")
-                continue
-            emb = embedder.embed(img)
-            embs.append(emb)
-        if not embs:
-            continue
-        embs = np.vstack(embs)
-        avg_emb = np.mean(embs, axis=0)
-        avg_emb = avg_emb / np.linalg.norm(avg_emb)
-        create_gallery_entry(user, avg_emb.astype(np.float32))
-        print(f"Added gallery entry for {user} ({len(embs)} images)")
-    print("Gallery build complete.")
+        img_files = [f for f in os.listdir(user_dir) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+        
+        success_count = 0
+        for f in img_files:
+            img_path = os.path.join(user_dir, f)
+            img = cv2.imread(img_path)
+            if img is None: continue
+            
+            # Detect
+            box, kps = detector.detect(img)
+            if box is not None:
+                # Align (Safe version returns original image if keypoints missing)
+                aligned = align_face(img, kps)
+                face = crop_box(aligned, box)
+                emb = embedder.embed(face)
+                create_gallery_entry(user, emb.astype(np.float32))
+                success_count += 1
+        
+        print(f"Stored {success_count} templates for user: {user}")
 
 def build_gallery_on_startup():
-    # Force the path to match the Docker volume mount point
-    database_root = "/app/database" 
-    if os.path.exists(database_root):
-        print(f"Scanning gallery at: {database_root}")
-        build_gallery(database_root)
-    else:
-        print("Error: Gallery folder not found at", database_root)
+    build_gallery("/app/database")

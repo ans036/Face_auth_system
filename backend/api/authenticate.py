@@ -22,7 +22,7 @@ async def authenticate(username: str = Form(...), file: UploadFile = File(...)):
 
         probe = embedder.embed(img)
         probe = np.asarray(probe, dtype=np.float32)
-        success, score = verify(user.embedding, probe, float(0.15))
+        success, score = verify(user.embedding, probe, float(0.6))
         return {"authenticated": bool(success), "score": float(score)}
     except HTTPException:
         raise

@@ -1,22 +1,39 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Face Authentication - Identify</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <title>Biometric Access Terminal</title>
+    <style>
+        :root { --primary: #00ff9d; --alert: #ff3333; --bg: #050505; }
+        body { background: var(--bg); color: #fff; font-family: monospace; display: flex; flex-direction: column; align-items: center; }
+        .header { width: 100%; padding: 20px; text-align: center; border-bottom: 1px solid #222; }
+        .wrapper { position: relative; width: 640px; height: 480px; border: 2px solid #333; margin-top: 20px; }
+        video, canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        .controls { margin: 20px; display: flex; gap: 15px; }
+        .btn { padding: 10px 20px; border: 1px solid var(--primary); color: var(--primary); background: none; cursor: pointer; text-transform: uppercase; }
+        .btn-alert { border-color: var(--alert); color: var(--alert); }
+        .status-panel { width: 640px; padding: 20px; background: #111; border-left: 5px solid var(--primary); }
+    </style>
 </head>
 <body>
-  <h1>Face Authentication — Identify</h1>
+    <div class="header"><h1>BIOMETRIC GATEWAY</h1></div>
+    
+    <div class="controls">
+        <button id="captureBtn" class="btn">📸 Manual Verify & Log</button>
+        <a href="security.html" class="btn btn-alert" style="text-decoration: none;">⚠️ Security Log</a>
+    </div>
 
-  <div id="controls">
-    <button id="identifyBtn">Identify</button>
-    <button id="refreshUnlock">Refresh Unlock Status</button>
-  </div>
+    <div class="wrapper">
+        <video id="video" autoplay muted></video>
+        <canvas id="canvas"></canvas>
+    </div>
 
-  <video id="video" autoplay playsinline></video>
-  <canvas id="canvas" style="display:none;"></canvas>
+    <div class="status-panel">
+        <div id="status">INITIALIZING...</div>
+    </div>
 
-  <pre id="result">Press Identify to capture and identify the face in front of your webcam.</pre>
+    <audio id="alarmSound" src="https://www.soundjay.com/buttons/beep-07.mp3" preload="auto"></audio>
 
-  <script src="app.js"></script>
+    <script src="app.js"></script>
 </body>
 </html>
