@@ -2,52 +2,91 @@ import numpy as np
 from db.crud import get_all_gallery
 
 class Recognizer:
-    def __init__(self, threshold=0.60):
+    def __init__(self, threshold=0.50, confidence_gap=0.03):
+        """
+        Enhanced recognizer with confidence gap requirement.
+        
+        Args:
+            threshold: Minimum similarity score to accept (0.50)
+            confidence_gap: Minimum difference between top 2 candidates (3%)
+        """
         self.threshold = threshold
+        self.confidence_gap = confidence_gap
         self.gallery = []
-        self.load_gallery()
 
     def load_gallery(self):
-        self.gallery = get_all_gallery()
+        """Loads gallery from database."""
+        try:
+            self.gallery = get_all_gallery()
+            if self.gallery:
+                print(f"✅ Loaded {len(self.gallery)} embeddings into recognizer")
+        except Exception as e:
+            print(f"⚠️  Gallery not ready yet: {e}")
+            self.gallery = []
 
     def identify(self, probe_emb):
+        """
+        Identify a face with enhanced confidence scoring.
+        
+        Returns:
+            (name, confidence) tuple
+        """
+        # Lazy loading
+        if not self.gallery:
+            self.load_gallery()
+        
         if not self.gallery:
             return "Unknown", 0.0
 
-        # 1. Normalize the incoming probe vector
-        probe_emb = probe_emb / np.linalg.norm(probe_emb)
-        
-        user_scores = {} # Store sums of scores per user
-        user_counts = {} # Store how many templates per user
+        # 1. Collect all scores per user (embeddings already normalized by embedder)
+        user_scores = {}
 
         for entry in self.gallery:
             target_emb = np.frombuffer(entry["embedding"], dtype=np.float32)
-            # Ensure gallery embedding is normalized
-            target_emb = target_emb / np.linalg.norm(target_emb)
             
-            # 2. Calculate Cosine Similarity
-            score = np.dot(target_emb, probe_emb)
+            # Cosine similarity (both embeddings already L2-normalized)
+            score = float(np.dot(target_emb, probe_emb))
             
             username = entry["username"]
             if username not in user_scores:
                 user_scores[username] = []
             user_scores[username].append(score)
 
-        best_final_score = -1.0
-        identified_name = "Unknown"
+        if not user_scores:
+            return "Unknown", 0.0
 
-        # 3. Weighted Scoring: Look at the top 3 best images for EACH person
+        # 2. Aggregate scores per user (Top-3 average with fewer embeddings now)
+        user_final_scores = {}
         for username, scores in user_scores.items():
             scores.sort(reverse=True)
-            # Average of top 3 matches for this specific person
-            top_3_avg = np.mean(scores[:3]) if len(scores) >= 3 else scores[0]
-            
-            if top_3_avg > best_final_score:
-                best_final_score = top_3_avg
-                identified_name = username
+            # Take average of top 3 scores (or all if less than 3)
+            top_k = min(3, len(scores))
+            user_final_scores[username] = float(np.mean(scores[:top_k]))
 
-        # 4. Final strict threshold check
-        if best_final_score >= self.threshold:
-            return identified_name, float(best_final_score)
+        # 3. Get top 2 candidates
+        sorted_candidates = sorted(user_final_scores.items(), key=lambda x: x[1], reverse=True)
         
-        return "Unknown", float(best_final_score)
+        best_name = sorted_candidates[0][0]
+        best_score = sorted_candidates[0][1]
+        
+        # Get second best (if exists)
+        second_best_score = sorted_candidates[1][1] if len(sorted_candidates) > 1 else 0.0
+        
+        # 4. Apply confidence gap requirement
+        gap = best_score - second_best_score
+        
+        # Debug logging (you can comment this out in production)
+        if len(sorted_candidates) >= 2:
+            print(f"🔍 Top-2: {best_name}={best_score:.3f}, {sorted_candidates[1][0]}={second_best_score:.3f}, Gap={gap:.3f}")
+        
+        # 5. Decision logic with confidence gap
+        if best_score >= self.threshold:
+            # Check if winner is clearly ahead of runner-up
+            if gap >= self.confidence_gap:
+                return best_name, best_score
+            else:
+                # Too close to call - reject as Unknown
+                print(f"⚠️  Rejected: Gap too small ({gap:.3f} < {self.confidence_gap})")
+                return "Unknown", best_score
+        
+        return "Unknown", best_score

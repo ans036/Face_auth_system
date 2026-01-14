@@ -13,3 +13,4 @@ mediapipe
 requests
 pillow
 PyYAML
+insightface

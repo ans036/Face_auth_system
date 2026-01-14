@@ -1,9 +1,11 @@
 FROM python:3.10-slim
 
-# ---- SYSTEM DEPENDENCIES FOR OPENCV ----
+# ---- SYSTEM DEPENDENCIES FOR OPENCV AND INSIGHTFACE ----
 RUN apt-get update && apt-get install -y \
     libgl1 \
     libglib2.0-0 \
+    g++ \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
