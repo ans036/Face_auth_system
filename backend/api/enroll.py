@@ -9,7 +9,7 @@ router = APIRouter()
 embedder = FaceEmbedder()
 
 @router.post("/")
-async def enroll(username: str = Form(...), file: UploadFile = File(...)):
+async def enroll_face(username: str = Form(...), file: UploadFile = File(...)):
     try:
         content = await file.read()
         img = read_image(content)

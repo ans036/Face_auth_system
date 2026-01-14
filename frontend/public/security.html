@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Breach Log</title>
+    <style>
+        :root {
+            --primary-color: #00ff9d;
+            --alert-color: #ff3333;
+            --bg-color: #0a0a0a;
+        }
+        body {
+            margin: 0; padding: 20px;
+            font-family: 'Segoe UI', Consolas, monospace;
+            background-color: var(--bg-color); color: var(--primary-color);
+        }
+        h1 { text-align: center; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 30px; }
+        
+        /* Navigation Button */
+        .nav-container { text-align: center; margin-bottom: 20px; }
+        .btn {
+            padding: 10px 20px; background: transparent;
+            border: 2px solid var(--primary-color); color: var(--primary-color);
+            text-decoration: none; font-weight: bold; transition: all 0.3s;
+            cursor: pointer;
+        }
+        .btn:hover { background: var(--primary-color); color: var(--bg-color); }
+
+        /* Grid Layout for Snapshots */
+        .snapshot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+            max-width: 1200px; margin: 0 auto;
+        }
+
+        /* Individual Snapshot Card */
+        .snapshot-card {
+            border: 2px solid var(--alert-color);
+            background: #111; padding: 10px;
+            box-shadow: 0 0 10px rgba(255, 51, 51, 0.3);
+        }
+        .snapshot-card img { width: 100%; height: auto; display: block; border-bottom: 2px solid var(--alert-color); }
+        .snapshot-info {
+            padding-top: 10px; font-size: 0.9rem; color: var(--alert-color);
+        }
+        .timestamp { display: block; font-weight: bold; margin-bottom: 5px; }
+        .score { display: block; font-size: 0.8rem; opacity: 0.8; }
+    </style>
+</head>
+<body>
+    <h1>Unauthorized Access Log</h1>
+    
+    <div class="nav-container">
+        <a href="index.html" class="btn">← Return to Live Scanner</a>
+    </div>
+
+    <div id="gridContainer" class="snapshot-grid">
+        <p id="loadingText">Loading security records...</p>
+    </div>
+
+    <script src="security.js"></script>
+</body>
+</html>
