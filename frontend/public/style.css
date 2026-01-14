@@ -1,0 +1,5 @@
+body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
+video { border: 2px solid #333; width: 640px; height: 480px; background: black; }
+#controls { margin-bottom: 10px; }
+button { padding: 8px 12px; margin: 0 6px; }
+pre { text-align: left; width: 640px; margin: 12px auto; background:#f4f4f4; padding:10px; border-radius:6px; }

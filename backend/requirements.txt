@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+onnxruntime
+opencv-python
+numpy
+scikit-learn
+sqlalchemy
+python-multipart
+cryptography
+matplotlib
+tqdm
+mediapipe==0.10.14
+requests
+pillow
+PyYAML
