@@ -1,9 +1,12 @@
-# Biometric Access Control & Security Terminal v3.0 (Development Finished)
+# Biometric Access Control & Security Terminal v3.1.0
+
+[![CI](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
 
 A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control.
 
-> **Status**: ✅ Development Finished | v3.0 Stable
-> **Latest Feature**: Admin Panel & Multimodal Fusion
+> **Status**: ✅ Development Stable | v3.1.0
+> **Latest Feature**: CI/CD Pipeline with Pytest Testing
+
 
 ## 🚀 Key Features
 
@@ -89,6 +92,20 @@ docker compose up --build
 *   **Red Box**: Unknown subject
 *   **🔊 Audio Alarm**: Triggers on unauthorized manual verification
 *   **📸 Evidence**: Unauthorized images saved to `unauthorized_attempts/`
+
+---
+
+## 🧪 Testing
+
+Run the pytest test suite locally:
+
+```bash
+cd backend
+pip install pytest pytest-asyncio httpx pillow
+pytest tests/ -v
+```
+
+The CI pipeline runs automatically on push/PR to `main` branch.
 
 ---
 

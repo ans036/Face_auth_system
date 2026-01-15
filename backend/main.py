@@ -13,7 +13,7 @@ from scripts.build_gallery import build_gallery_on_startup
 app = FastAPI(
     title="Multi-Modal Face Authentication System",
     description="Face + voice recognition with liveness detection and face-gated messaging",
-    version="3.0.0"
+    version="3.1.0"
 )
 
 app.add_middleware(
@@ -34,7 +34,7 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "face-auth-backend",
-        "version": "3.0.0",
+        "version": "3.1.0",
         "features": ["face", "voice", "liveness", "private_messages"]
     }
 
