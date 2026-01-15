@@ -211,8 +211,8 @@ async def identify(
         # But for demo, we match the result["is_authenticated"]
         auth_status = "authenticated" if result["is_authenticated"] else "unauthorized"
         
-        # Log if manual capture
-        if manual_clicked:
+        # Log only if manual capture AND unauthorized (Unknown)
+        if manual_clicked and name == "Unknown":
             save_event_to_log(img, name, combined_score, is_live)
             
         return {

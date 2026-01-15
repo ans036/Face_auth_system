@@ -1,12 +1,12 @@
 const grid = document.getElementById('gridContainer');
 const loadingText = document.getElementById('loadingText');
-const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8000' : 'http://127.0.0.1:8000';
+const apiBaseUrl = window.location.hostname === 'localhost' ? 'http://localhost:8001' : 'http://127.0.0.1:8001';
 
 async function loadSnapshots() {
     try {
         const response = await fetch(`${apiBaseUrl}/security/snapshots/`);
         if (!response.ok) throw new Error("Failed to fetch records");
-        
+
         const files = await response.json();
         loadingText.remove();
 
@@ -20,7 +20,7 @@ async function loadSnapshots() {
             const parts = filename.split('_');
             const timestamp = parseInt(parts[1]);
             const scoreRaw = parseInt(parts[3].split('.')[0]);
-            
+
             // Format date nicely
             const date = new Date(timestamp * 1000);
             const dateStr = date.toLocaleString();
@@ -46,7 +46,7 @@ function createSnapshotCard(filename, dateStr, score) {
 
     const info = document.createElement('div');
     info.className = 'snapshot-info';
-    
+
     info.innerHTML = `
         <span class="timestamp">${dateStr}</span>
         <span class="score">Max Confidence: ${score}%</span>

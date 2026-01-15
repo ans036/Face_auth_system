@@ -196,3 +196,5 @@
 [1768439053] ALERT: Unauthorized attempt detected. Score: 0.40. Image saved to Unknown_1768439053_score_40.jpg
 [1768439053] ALERT: Unauthorized attempt detected. Score: 0.41. Image saved to Unknown_1768439053_score_41.jpg
 [1768439053] ALERT: Unauthorized attempt detected. Score: 0.37. Image saved to Unknown_1768439053_score_36.jpg
+[1768491027] Unknown | Score: 0.29 | Liveness: LIVE | File: Unknown_1768491027_score_28_LIVE.jpg
+[1768491029] Unknown | Score: 0.25 | Liveness: LIVE | File: Unknown_1768491029_score_25_LIVE.jpg

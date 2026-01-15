@@ -306,7 +306,7 @@
     </div>
 
     <script>
-        const apiBaseUrl = 'http://localhost:8000';
+        const apiBaseUrl = 'http://localhost:8001';
         let currentToken = null;
         let refreshInterval = null;
         let lastUsername = null;
@@ -457,7 +457,9 @@
                 document.getElementById('createResult').innerHTML =
                     `✓ Created! <a href="?id=${data.message_id}" style="color: var(--primary);">View Message</a>`;
             } catch (e) {
-                document.getElementById('createResult').innerText = 'Error creating message';
+                console.error("Create failed:", e);
+                document.getElementById('createResult').innerHTML =
+                    `<span style="color: var(--alert);">Error: ${e.message || "Unknown error"}</span>`;
             }
         }
     </script>

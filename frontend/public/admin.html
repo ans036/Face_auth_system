@@ -299,6 +299,10 @@
         <div class="login-box">
             <h1>🔐 Admin Panel</h1>
             <p>Face Auth System v3.0</p>
+            <div style="text-align: center; margin-bottom: 20px;">
+                <a href="index.html" style="color: #00bcd4; text-decoration: none; font-size: 0.9rem;">← Back to
+                    Scanner</a>
+            </div>
             <div class="error-msg" id="errorMsg"></div>
             <form id="loginForm" action="/admin/login" method="POST">
                 <div class="form-group">
@@ -388,8 +392,8 @@
 
     <script>
         const API_BASE = window.location.hostname === 'localhost'
-            ? 'http://localhost:8000'
-            : `http://${window.location.hostname}:8000`;
+            ? 'http://localhost:8001'
+            : `http://${window.location.hostname}:8001`;
 
         let currentTab = 'all';
 

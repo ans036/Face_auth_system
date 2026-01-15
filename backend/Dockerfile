@@ -1,4 +1,4 @@
-FROM python:3.10-slim
+FROM python:3.10-slim-bookworm
 
 # ---- SYSTEM DEPENDENCIES FOR OPENCV AND INSIGHTFACE ----
 RUN apt-get update && apt-get install -y \
@@ -10,12 +10,18 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
+# Create a non-root user
+RUN useradd -m -u 1000 appuser
+
 WORKDIR /app
 
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . /app
+COPY --chown=appuser:appuser . /app
+
+# Switch to non-root user
+USER appuser
 
 EXPOSE 8000
 

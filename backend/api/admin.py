@@ -19,8 +19,8 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 SESSIONS = {}
 
 # Admin credentials from environment or defaults
-ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "anish")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "floyd003")
 SECRET_KEY = os.getenv("SECRET_KEY", "face-auth-secret-key-change-in-production")
 
 def hash_password(password: str) -> str:
@@ -69,8 +69,8 @@ async def admin_login(response: Response, username: str = Form(...), password: s
             "expires": datetime.now() + timedelta(hours=8)
         }
         
-        # Set cookie and redirect
-        response = RedirectResponse(url="/admin/dashboard", status_code=303)
+        # Set cookie and return success
+        response = JSONResponse(content={"status": "success", "message": "Login successful"})
         response.set_cookie(
             key="admin_session",
             value=session_id,
@@ -79,7 +79,9 @@ async def admin_login(response: Response, username: str = Form(...), password: s
         )
         return response
     
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    # Custom error message for non-admin or wrong password
+    msg = "Access denied - not an Admin" if username != ADMIN_USERNAME else "Invalid password"
+    raise HTTPException(status_code=401, detail=msg)
 
 
 @router.get("/logout")
@@ -204,6 +206,7 @@ async def get_dashboard_stats(
 ):
     """Get dashboard statistics."""
     from db.crud import get_all_gallery, get_voice_gallery
+    import re
     
     stats = {
         "total_users": 0,
@@ -230,12 +233,30 @@ async def get_dashboard_stats(
         # Count today's attempts from log
         log_file = "/app/security.log"
         today = datetime.now().strftime("%Y-%m-%d")
+        # Get today's midnight timestamp for comparison
+        today_midnight = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+        
         if os.path.exists(log_file):
             with open(log_file, "r") as f:
                 for line in f.readlines():
+                    is_today = False
+                    is_unauthorized = False
+                    
+                    # Check old format: "2026-01-15 ..."
                     if today in line:
+                        is_today = True
+                    
+                    # Check new format: "[1768491027] ..."
+                    ts_match = re.match(r'^\[(\d+)\]', line)
+                    if ts_match:
+                        ts = int(ts_match.group(1))
+                        if ts >= today_midnight:
+                            is_today = True
+                    
+                    if is_today:
                         stats["total_attempts"] += 1
-                        if "Unknown" in line:
+                        # Check for unauthorized (Unknown or null username)
+                        if "Unknown" in line or '"username": null' in line:
                             stats["unauthorized_today"] += 1
                         else:
                             stats["authorized_today"] += 1
