@@ -1,318 +1,289 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <title>Biometric Access Terminal</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
     <style>
-        :root { 
-            --primary: #00ff9d; 
-            --alert: #ff3333; 
-            --bg: #050505; 
-            --scan: #00ffff;
+        :root {
+            --primary: #00e676;
+            --alert: #ff5252;
+            --bg: #0a0a0a;
+            --scan: #00bcd4;
+            --text: #e0e0e0;
+            --muted: #666;
         }
-        
-        * { box-sizing: border-box; }
-        
-        body { 
-            background: var(--bg); 
-            color: #fff; 
-            font-family: 'Courier New', monospace; 
-            display: flex; 
-            flex-direction: column; 
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            margin: 0;
             min-height: 100vh;
+            padding: 20px;
         }
-        
-        .header { 
-            width: 100%; 
-            padding: 20px; 
-            text-align: center; 
-            border-bottom: 1px solid #222;
-            background: linear-gradient(180deg, #111 0%, transparent 100%);
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
         }
-        
+
         .header h1 {
-            margin: 0;
-            font-size: 2rem;
-            letter-spacing: 8px;
-            text-shadow: 0 0 20px var(--primary);
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: 4px;
+            color: #fff;
         }
-        
-        .controls { 
-            margin: 20px; 
-            display: flex; 
-            gap: 15px; 
+
+        .header .subtitle {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 4px;
+            font-family: 'JetBrains Mono', monospace;
         }
-        
-        .btn { 
-            padding: 12px 24px; 
-            border: 2px solid var(--primary); 
-            color: var(--primary); 
-            background: rgba(0, 255, 157, 0.1); 
-            cursor: pointer; 
-            text-transform: uppercase;
-            font-family: inherit;
-            font-weight: bold;
-            letter-spacing: 2px;
-            transition: all 0.3s ease;
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
         }
-        
+
+        .btn {
+            padding: 10px 20px;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 500;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
         .btn:hover {
-            background: rgba(0, 255, 157, 0.3);
-            box-shadow: 0 0 20px var(--primary);
+            background: rgba(0, 230, 118, 0.1);
         }
-        
-        .btn-alert { 
-            border-color: var(--alert); 
-            color: var(--alert); 
-            background: rgba(255, 51, 51, 0.1);
+
+        .btn-alert {
+            border-color: var(--alert);
+            color: var(--alert);
         }
-        
+
         .btn-alert:hover {
-            background: rgba(255, 51, 51, 0.3);
-            box-shadow: 0 0 20px var(--alert);
+            background: rgba(255, 82, 82, 0.1);
         }
-        
+
         .scanner-container {
             position: relative;
-            margin-top: 20px;
         }
-        
-        .wrapper { 
-            position: relative; 
-            width: 640px; 
-            height: 480px; 
-            border: 2px solid #333;
+
+        .wrapper {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            border: 1px solid #222;
+            border-radius: 8px;
             overflow: hidden;
+            background: #000;
         }
-        
-        /* Corner brackets */
-        .wrapper::before,
-        .wrapper::after {
-            content: '';
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            border: 3px solid var(--scan);
-            z-index: 10;
-            pointer-events: none;
-        }
-        
-        .wrapper::before {
-            top: 10px;
-            left: 10px;
-            border-right: none;
-            border-bottom: none;
-        }
-        
-        .wrapper::after {
-            bottom: 10px;
-            right: 10px;
-            border-left: none;
-            border-top: none;
-        }
-        
-        .corner-tl, .corner-br {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            border: 3px solid var(--scan);
-            z-index: 10;
-            pointer-events: none;
-        }
-        
-        .corner-tl {
-            top: 10px;
-            right: 10px;
-            border-left: none;
-            border-bottom: none;
-        }
-        
-        .corner-br {
-            bottom: 10px;
-            left: 10px;
-            border-right: none;
-            border-top: none;
-        }
-        
-        /* Scanning line animation */
+
+        /* Scanning line */
         .scan-line {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
-            height: 3px;
-            background: linear-gradient(90deg, transparent, var(--scan), transparent);
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, var(--scan) 50%, transparent 100%);
             z-index: 5;
-            opacity: 0.8;
-            animation: scan 2s linear infinite;
+            opacity: 0.7;
+            animation: scan 2.5s ease-in-out infinite;
             pointer-events: none;
+            box-shadow: 0 0 15px var(--scan);
         }
-        
+
         @keyframes scan {
-            0% { top: 0; }
-            100% { top: 100%; }
+
+            0%,
+            100% {
+                top: 0;
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 0.7;
+            }
+
+            90% {
+                opacity: 0.7;
+            }
+
+            100% {
+                top: 100%;
+                opacity: 0;
+            }
         }
-        
-        /* Grid overlay */
-        .grid-overlay {
+
+        video,
+        canvas {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-image: 
-                linear-gradient(rgba(0, 255, 255, 0.03) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(0, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 20px 20px;
-            z-index: 4;
-            pointer-events: none;
         }
-        
-        video, canvas { 
-            position: absolute; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%; 
-        }
-        
+
         canvas {
             z-index: 3;
         }
-        
-        /* HUD elements */
-        .hud-info {
+
+        /* Corner accents */
+        .corner {
             position: absolute;
-            bottom: 15px;
-            left: 15px;
-            font-size: 12px;
-            color: var(--scan);
-            z-index: 10;
-            text-shadow: 0 0 5px var(--scan);
+            width: 30px;
+            height: 30px;
+            border-color: var(--scan);
+            border-style: solid;
+            border-width: 0;
+            z-index: 4;
+            opacity: 0.5;
         }
-        
+
+        .corner-tl {
+            top: 8px;
+            left: 8px;
+            border-top-width: 2px;
+            border-left-width: 2px;
+        }
+
+        .corner-tr {
+            top: 8px;
+            right: 8px;
+            border-top-width: 2px;
+            border-right-width: 2px;
+        }
+
+        .corner-bl {
+            bottom: 8px;
+            left: 8px;
+            border-bottom-width: 2px;
+            border-left-width: 2px;
+        }
+
+        .corner-br {
+            bottom: 8px;
+            right: 8px;
+            border-bottom-width: 2px;
+            border-right-width: 2px;
+        }
+
+        /* HUD overlay */
+        .hud {
+            position: absolute;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--scan);
+            z-index: 6;
+            opacity: 0.6;
+        }
+
+        .hud-top {
+            top: 12px;
+            left: 50px;
+        }
+
         .hud-time {
-            position: absolute;
-            top: 15px;
-            right: 80px;
-            font-size: 12px;
-            color: var(--scan);
-            z-index: 10;
-            text-shadow: 0 0 5px var(--scan);
+            top: 12px;
+            right: 50px;
         }
-        
-        .status-panel { 
-            width: 640px; 
-            padding: 20px; 
-            background: linear-gradient(90deg, #111, #0a0a0a);
-            border-left: 5px solid var(--primary);
-            margin-top: 5px;
+
+        .status-panel {
+            width: 640px;
+            padding: 16px 20px;
+            background: #111;
+            border: 1px solid #222;
+            border-top: none;
+            border-radius: 0 0 8px 8px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
         }
-        
-        .status-indicator {
-            width: 15px;
-            height: 15px;
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
             background: var(--primary);
-            animation: pulse 1.5s ease-in-out infinite;
+            animation: pulse 2s ease-in-out infinite;
         }
-        
-        .status-indicator.alert {
+
+        .status-dot.alert {
             background: var(--alert);
         }
-        
+
         @keyframes pulse {
-            0%, 100% { opacity: 1; box-shadow: 0 0 10px currentColor; }
-            50% { opacity: 0.5; box-shadow: 0 0 5px currentColor; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
         }
-        
+
         #status {
-            font-size: 14px;
-            letter-spacing: 2px;
-        }
-        
-        /* Processing animation */
-        .processing-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 255, 255, 0.1);
-            z-index: 6;
-            display: none;
-            pointer-events: none;
-        }
-        
-        .processing-overlay.active {
-            display: block;
-            animation: processPulse 0.5s ease-in-out;
-        }
-        
-        @keyframes processPulse {
-            0% { background: rgba(0, 255, 255, 0.3); }
-            100% { background: rgba(0, 255, 255, 0); }
-        }
-        
-        /* Face targeting reticle */
-        .reticle {
-            position: absolute;
-            width: 150px;
-            height: 150px;
-            border: 2px dashed rgba(0, 255, 255, 0.5);
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 4;
-            pointer-events: none;
-            animation: reticleRotate 10s linear infinite;
-        }
-        
-        @keyframes reticleRotate {
-            from { transform: translate(-50%, -50%) rotate(0deg); }
-            to { transform: translate(-50%, -50%) rotate(360deg); }
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
         }
     </style>
 </head>
+
 <body>
-    <div class="header"><h1>BIOMETRIC GATEWAY</h1></div>
-    
+    <div class="header">
+        <h1>BIOMETRIC GATEWAY</h1>
+        <div class="subtitle">INSIGHTFACE v2.0 • SECURE ACCESS TERMINAL</div>
+    </div>
+
     <div class="controls">
-        <button id="captureBtn" class="btn">📸 Manual Verify & Log</button>
-        <a href="security.html" class="btn btn-alert" style="text-decoration: none;">⚠️ Security Log</a>
+        <button id="captureBtn" class="btn">📸 Manual Verify</button>
+        <a href="security.html" class="btn btn-alert" style="text-decoration: none;">⚠ Security Log</a>
     </div>
 
     <div class="scanner-container">
         <div class="wrapper">
             <video id="video" autoplay muted></video>
             <canvas id="canvas"></canvas>
-            <div class="grid-overlay"></div>
             <div class="scan-line"></div>
-            <div class="reticle"></div>
-            <div class="processing-overlay" id="processingOverlay"></div>
-            <div class="corner-tl"></div>
-            <div class="corner-br"></div>
-            <div class="hud-info">
-                <div>SYS: BIOMETRIC_v2.0</div>
-                <div>MODEL: INSIGHTFACE_BUFFALO_L</div>
-            </div>
-            <div class="hud-time" id="hudTime">00:00:00</div>
+            <div class="corner corner-tl"></div>
+            <div class="corner corner-tr"></div>
+            <div class="corner corner-bl"></div>
+            <div class="corner corner-br"></div>
+            <div class="hud hud-top">SYS:ONLINE</div>
+            <div class="hud hud-time" id="hudTime">00:00:00</div>
+        </div>
+        <div class="status-panel">
+            <div class="status-dot" id="statusDot"></div>
+            <div id="status">INITIALIZING...</div>
         </div>
     </div>
 
-    <div class="status-panel">
-        <div class="status-indicator" id="statusIndicator"></div>
-        <div id="status">INITIALIZING BIOMETRIC SCANNER...</div>
-    </div>
-
     <audio id="alarmSound" src="https://www.soundjay.com/buttons/beep-07.mp3" preload="auto"></audio>
-
     <script src="app.js"></script>
 </body>
+
 </html>
