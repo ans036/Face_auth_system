@@ -1,6 +1,6 @@
 # Biometric Access Control & Security Terminal v3.2.0
 
-[![CI](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
+[![CI - Run Tests](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
 
 A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control.
 
