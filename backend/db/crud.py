@@ -1,6 +1,6 @@
 import numpy as np
 from db.session import SessionLocal
-from db.models import User, Gallery
+from db.models import User, Gallery, VoiceGallery
 
 def create_user(username: str, embedding: np.ndarray):
     s = SessionLocal()
@@ -39,8 +39,7 @@ def get_all_gallery():
         rows = s.query(Gallery).all()
         out = []
         for r in rows:
-            emb = np.frombuffer(r.embedding, dtype=np.float32)
-            out.append({"username": r.username, "embedding": emb})
+            out.append({"username": r.username, "embedding": r.embedding})
         return out
     finally:
         s.close()
@@ -82,5 +81,55 @@ def get_user_embeddings(username: str):
     try:
         rows = s.query(Gallery).filter_by(username=username).all()
         return [np.frombuffer(r.embedding, dtype=np.float32) for r in rows]
+    finally:
+        s.close()
+
+# =====================
+# Voice Gallery CRUD
+# =====================
+
+def create_voice_entry(username: str, embedding: np.ndarray):
+    """Add a voice embedding to the gallery."""
+    s = SessionLocal()
+    try:
+        arr = np.asarray(embedding, dtype=np.float32)
+        v = VoiceGallery(username=username, embedding=arr.tobytes())
+        s.add(v)
+        s.commit()
+    finally:
+        s.close()
+
+def get_voice_gallery():
+    """Get all voice embeddings."""
+    s = SessionLocal()
+    try:
+        rows = s.query(VoiceGallery).all()
+        out = []
+        for r in rows:
+            out.append({"username": r.username, "embedding": r.embedding})
+        return out
+    finally:
+        s.close()
+
+def clear_voice_gallery():
+    """Clear all voice embeddings."""
+    s = SessionLocal()
+    try:
+        s.query(VoiceGallery).delete()
+        s.commit()
+    finally:
+        s.close()
+
+def get_voice_stats():
+    """Get count of voice embeddings per user."""
+    s = SessionLocal()
+    try:
+        rows = s.query(VoiceGallery).all()
+        stats = {}
+        for r in rows:
+            if r.username not in stats:
+                stats[r.username] = 0
+            stats[r.username] += 1
+        return stats
     finally:
         s.close()

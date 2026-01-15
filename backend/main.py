@@ -5,13 +5,15 @@ from api.authenticate import router as auth_router
 from api.identify import router as identify_router
 from api.security import router as security_router
 from api.gallery import router as gallery_router
+from api.private_message import router as private_router
+from api.admin import router as admin_router
 from db.session import init_db
 from scripts.build_gallery import build_gallery_on_startup
 
 app = FastAPI(
-    title="Face Authentication System",
-    description="Face recognition and authentication API with InsightFace buffalo_l model",
-    version="2.0.0"
+    title="Multi-Modal Face Authentication System",
+    description="Face + voice recognition with liveness detection and face-gated messaging",
+    version="3.0.0"
 )
 
 app.add_middleware(
@@ -29,13 +31,14 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "face-auth-backend",
-        "version": "2.0.0"
+        "version": "3.0.0",
+        "features": ["face", "voice", "liveness", "private_messages"]
     }
 
 
 @app.on_event("startup")
 def startup():
-    print("🚀 Starting Face Authentication System v2.0...")
+    print("🚀 Starting Multi-Modal Face Auth System v3.0...")
     
     # Initialize database
     print("📊 Initializing database...")
@@ -46,15 +49,18 @@ def startup():
     os.makedirs("/app/unauthorized_attempts", exist_ok=True)
     
     # Build gallery from database folder
-    print("🖼️  Building gallery...")
+    print("🖼️  Building face gallery...")
     build_gallery_on_startup()
     
-    # Load gallery into recognizer
-    print("🔄 Loading gallery into recognizer...")
-    from api.identify import recognizer
-    recognizer.load_gallery()
+    # Load galleries (Face + Voice)
+    print("🔄 Loading galleries into multimodal authenticator...")
+    try:
+        from api.identify import multimodal_auth
+        multimodal_auth.load_galleries()
+    except Exception as e:
+        print(f"⚠️ Failed to load galleries: {e}")
     
-    print("✅ System ready!")
+    print("✅ System ready! Features: Face + Voice + Liveness + Private Messages")
 
 
 # Mount routers
@@ -62,3 +68,5 @@ app.include_router(identify_router, prefix="/identify", tags=["Identification"])
 app.include_router(enroll_router, prefix="/enroll", tags=["Enrollment"])
 app.include_router(gallery_router, prefix="/gallery", tags=["Gallery Management"])
 app.include_router(security_router, prefix="/security", tags=["Security"])
+app.include_router(private_router, prefix="/private", tags=["Private Messages"])
+app.include_router(admin_router, tags=["Admin"])

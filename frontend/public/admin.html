@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Face Auth System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+
+        /* Login Form */
+        .login-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .login-box {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-box h1 {
+            color: #00e676;
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+
+        .login-box p {
+            color: #888;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            color: #aaa;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 14px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #fff;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #00e676;
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00e676, #00c853);
+            border: none;
+            border-radius: 8px;
+            color: #000;
+            font-weight: 600;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+        }
+
+        .error-msg {
+            background: rgba(255, 82, 82, 0.1);
+            border: 1px solid #ff5252;
+            color: #ff5252;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        /* Dashboard */
+        .dashboard {
+            display: none;
+        }
+
+        .dashboard.active {
+            display: block;
+        }
+
+        .login-container.hidden {
+            display: none;
+        }
+
+        .header {
+            background: rgba(20, 20, 30, 0.95);
+            border-bottom: 1px solid #333;
+            padding: 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #00e676;
+            font-size: 20px;
+        }
+
+        .header .user-info {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .header .logout-btn {
+            padding: 10px 20px;
+            background: transparent;
+            border: 1px solid #ff5252;
+            color: #ff5252;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .main-content {
+            padding: 30px 40px;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 24px;
+        }
+
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #00e676;
+        }
+
+        .stat-card .label {
+            color: #888;
+            font-size: 14px;
+            margin-top: 4px;
+        }
+
+        .stat-card.warning .value {
+            color: #ffc107;
+        }
+
+        .stat-card.danger .value {
+            color: #ff5252;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid #333;
+            border-radius: 8px;
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .tab.active {
+            background: #00e676;
+            color: #000;
+            border-color: #00e676;
+        }
+
+        /* Logs Table */
+        .logs-container {
+            background: rgba(20, 20, 30, 0.95);
+            border: 1px solid #333;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .logs-header {
+            padding: 20px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logs-header h2 {
+            font-size: 18px;
+        }
+
+        .refresh-btn {
+            padding: 10px 20px;
+            background: #1a1a2e;
+            border: 1px solid #333;
+            color: #00e676;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .logs-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .logs-table th,
+        .logs-table td {
+            padding: 14px 20px;
+            text-align: left;
+            border-bottom: 1px solid #222;
+        }
+
+        .logs-table th {
+            background: #1a1a2e;
+            color: #888;
+            font-weight: 500;
+            font-size: 13px;
+            text-transform: uppercase;
+        }
+
+        .logs-table tr:hover {
+            background: rgba(0, 230, 118, 0.05);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge.success {
+            background: rgba(0, 230, 118, 0.2);
+            color: #00e676;
+        }
+
+        .badge.danger {
+            background: rgba(255, 82, 82, 0.2);
+            color: #ff5252;
+        }
+
+        .badge.warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: #ffc107;
+        }
+
+        /* No data */
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Login Form -->
+    <div class="login-container" id="loginContainer">
+        <div class="login-box">
+            <h1>🔐 Admin Panel</h1>
+            <p>Face Auth System v3.0</p>
+            <div class="error-msg" id="errorMsg"></div>
+            <form id="loginForm" action="/admin/login" method="POST">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" name="username" id="username" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" name="password" id="password" required>
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <header class="header">
+            <h1>🛡️ Security Admin Panel</h1>
+            <div class="user-info">
+                <span>Logged in as <strong>admin</strong></span>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </header>
+
+        <div class="main-content">
+            <!-- Stats -->
+            <div class="stats-grid" id="statsGrid">
+                <div class="stat-card">
+                    <div class="value" id="statUsers">-</div>
+                    <div class="label">Enrolled Users</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="statFace">-</div>
+                    <div class="label">Face Embeddings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="statVoice">-</div>
+                    <div class="label">Voice Embeddings</div>
+                </div>
+                <div class="stat-card">
+                    <div class="value" id="statToday">-</div>
+                    <div class="label">Attempts Today</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="value" id="statAuth">-</div>
+                    <div class="label">Authorized Today</div>
+                </div>
+                <div class="stat-card danger">
+                    <div class="value" id="statUnauth">-</div>
+                    <div class="label">Unauthorized Today</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('all')">All Attempts</div>
+                <div class="tab" onclick="switchTab('authorized')">Authorized</div>
+                <div class="tab" onclick="switchTab('unauthorized')">Unauthorized</div>
+            </div>
+
+            <!-- Logs Table -->
+            <div class="logs-container">
+                <div class="logs-header">
+                    <h2>Security Logs</h2>
+                    <button class="refresh-btn" onclick="loadAttempts()">↻ Refresh</button>
+                </div>
+                <table class="logs-table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User</th>
+                            <th>Score</th>
+                            <th>Liveness</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logsBody">
+                        <tr>
+                            <td colspan="5" class="no-data">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = window.location.hostname === 'localhost'
+            ? 'http://localhost:8000'
+            : `http://${window.location.hostname}:8000`;
+
+        let currentTab = 'all';
+
+        // Check auth on load
+        async function checkAuth() {
+            try {
+                const res = await fetch(`${API_BASE}/admin/check`, { credentials: 'include' });
+                const data = await res.json();
+                if (data.authenticated) {
+                    showDashboard();
+                }
+            } catch (e) {
+                console.log("Not authenticated");
+            }
+        }
+
+        // Login form
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/login`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'include'
+                });
+
+                if (res.ok || res.redirected) {
+                    showDashboard();
+                } else {
+                    const err = await res.json();
+                    document.getElementById('errorMsg').textContent = err.detail || 'Login failed';
+                    document.getElementById('errorMsg').style.display = 'block';
+                }
+            } catch (e) {
+                document.getElementById('errorMsg').textContent = 'Connection error';
+                document.getElementById('errorMsg').style.display = 'block';
+            }
+        });
+
+        function showDashboard() {
+            document.getElementById('loginContainer').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('active');
+            loadStats();
+            loadAttempts();
+        }
+
+        async function logout() {
+            await fetch(`${API_BASE}/admin/logout`, { credentials: 'include' });
+            location.reload();
+        }
+
+        async function loadStats() {
+            try {
+                const res = await fetch(`${API_BASE}/admin/stats`, { credentials: 'include' });
+                const stats = await res.json();
+
+                document.getElementById('statUsers').textContent = stats.total_users || 0;
+                document.getElementById('statFace').textContent = stats.face_embeddings || 0;
+                document.getElementById('statVoice').textContent = stats.voice_embeddings || 0;
+                document.getElementById('statToday').textContent = stats.total_attempts || 0;
+                document.getElementById('statAuth').textContent = stats.authorized_today || 0;
+                document.getElementById('statUnauth').textContent = stats.unauthorized_today || 0;
+            } catch (e) {
+                console.error("Failed to load stats", e);
+            }
+        }
+
+        async function loadAttempts() {
+            const tbody = document.getElementById('logsBody');
+            tbody.innerHTML = '<tr><td colspan="5" class="no-data">Loading...</td></tr>';
+
+            try {
+                const res = await fetch(`${API_BASE}/admin/attempts?status=${currentTab}`, {
+                    credentials: 'include'
+                });
+                const data = await res.json();
+
+                if (!data.attempts || data.attempts.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="no-data">No attempts found</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.attempts.map(a => `
+                    <tr>
+                        <td>${a.timestamp || '-'}</td>
+                        <td>${a.username || 'Unknown'}</td>
+                        <td>${a.score ? (a.score * 100).toFixed(1) + '%' : '-'}</td>
+                        <td>${a.is_live ? '<span class="badge success">Live</span>' : '<span class="badge warning">Not Live</span>'}</td>
+                        <td>${a.is_known ? '<span class="badge success">Authorized</span>' : '<span class="badge danger">Unauthorized</span>'}</td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" class="no-data">Failed to load data</td></tr>';
+            }
+        }
+
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadAttempts();
+        }
+
+        // Init
+        checkAuth();
+    </script>
+</body>
+
+</html>

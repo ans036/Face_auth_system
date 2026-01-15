@@ -205,3 +205,36 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# ========================================
+# FACE AUTH SYSTEM - SENSITIVE DATA
+# ========================================
+# Database files
+face_auth.db
+face_auth.db-journal
+*.db
+*.db-journal
+
+# User data directories
+database/
+unauthorized_attempts/
+
+# Security logs
+security.log
+
+# Model caches (large files)
+models/speechbrain/
+models/insightface/
+
+# Audio/video files
+*.wav
+*.webm
+*.mp3
+*.mp4
+
+# Captured images
+*.jpg
+*.jpeg
+*.png
+!frontend/public/*.png
+!frontend/public/*.jpg

@@ -2,7 +2,7 @@ fastapi
 uvicorn
 onnxruntime
 opencv-python
-numpy
+numpy<2
 scikit-learn
 sqlalchemy
 python-multipart
@@ -14,3 +14,9 @@ requests
 pillow
 PyYAML
 insightface
+torch>=2.1.0,<2.5.0
+torchaudio>=2.1.0,<2.5.0
+speechbrain>=1.0.0
+huggingface-hub<0.25.0
+soundfile
+protobuf>=3.20.0,<4.0.0

@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Private Message Viewer</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #00e676;
+            --alert: #ff5252;
+            --warning: #ffc107;
+            --bg: #0a0a0a;
+            --card: #151515;
+            --text: #e0e0e0;
+            --muted: #666;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-weight: 600;
+            letter-spacing: 2px;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #222;
+        }
+
+        .locked-overlay {
+            position: relative;
+            overflow: hidden;
+        }
+
+        .locked-overlay.locked::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            z-index: 10;
+        }
+
+        .locked-overlay.locked::after {
+            content: '🔒 FACE VERIFICATION REQUIRED';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 11;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--warning);
+            text-align: center;
+            letter-spacing: 2px;
+        }
+
+        .message-content {
+            font-size: 1.1rem;
+            line-height: 1.8;
+            padding: 20px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #111;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--muted);
+        }
+
+        .dot.active {
+            background: var(--primary);
+        }
+
+        .dot.warning {
+            background: var(--warning);
+            animation: pulse 1s infinite;
+        }
+
+        .dot.alert {
+            background: var(--alert);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.4;
+            }
+        }
+
+        .camera-container {
+            position: relative;
+            width: 320px;
+            height: 240px;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #333;
+            margin: 0 auto 20px;
+        }
+
+        .camera-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-overlay {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--primary);
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            background: transparent;
+            cursor: pointer;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: rgba(0, 230, 118, 0.1);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: var(--muted);
+            font-size: 0.85rem;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: var(--text);
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 10px 20px;
+            background: #151515;
+            border: 1px solid #333;
+            border-radius: 6px;
+            cursor: pointer;
+            color: var(--muted);
+        }
+
+        .tab.active {
+            background: var(--primary);
+            color: #000;
+            border-color: var(--primary);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <!-- Navigation -->
+        <div style="text-align: center; margin-bottom: 20px;">
+            <a href="index.html"
+                style="text-decoration: none; color: #00bcd4; font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;">
+                ← Back to Scanner
+            </a>
+        </div>
+
+        <h1>🔐 FACE-GATED MESSAGES</h1>
+
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('view')">View Message</div>
+            <div class="tab" onclick="showTab('create')">Create Message</div>
+        </div>
+
+        <!-- View Message Tab -->
+        <div id="viewTab">
+            <div class="status-bar">
+                <div class="status-indicator">
+                    <div class="dot" id="statusDot"></div>
+                    <span id="statusText">INITIALIZING...</span>
+                </div>
+                <span id="timerText">--:--</span>
+            </div>
+
+            <div class="camera-container">
+                <video id="video" autoplay muted></video>
+                <div class="camera-overlay">
+                    <span id="userLabel">NO FACE</span>
+                    <span id="livenessLabel">○ VERIFYING</span>
+                </div>
+            </div>
+
+            <div class="card locked-overlay locked" id="messageCard">
+                <h2 id="messageTitle">Loading...</h2>
+                <div class="message-content" id="messageContent">
+                    This content is protected by face authentication.
+                    Look at the camera to unlock.
+                </div>
+            </div>
+        </div>
+
+        <!-- Create Message Tab -->
+        <div id="createTab" style="display: none;">
+            <div class="card">
+                <h2 style="margin-bottom: 20px;">Create Private Message</h2>
+                <div class="form-group">
+                    <label>Title</label>
+                    <input type="text" id="newTitle" placeholder="Confidential Report">
+                </div>
+                <div class="form-group">
+                    <label>Allowed Users (comma-separated)</label>
+                    <input type="text" id="newUsers" placeholder="anish, sayani">
+                </div>
+                <div class="form-group">
+                    <label>Private Content</label>
+                    <textarea id="newContent" placeholder="Enter your private message here..."></textarea>
+                </div>
+                <button class="btn" onclick="createMessage()">Create Protected Message</button>
+                <div id="createResult" style="margin-top: 15px; color: var(--primary);"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const apiBaseUrl = 'http://localhost:8000';
+        let currentToken = null;
+        let refreshInterval = null;
+        let lastUsername = null;
+        let isLive = false;
+
+        // Tab switching
+        function showTab(tab) {
+            document.getElementById('viewTab').style.display = tab === 'view' ? 'block' : 'none';
+            document.getElementById('createTab').style.display = tab === 'create' ? 'block' : 'none';
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Initialize camera
+        navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+            .then(stream => {
+                document.getElementById('video').srcObject = stream;
+                setInterval(checkFace, 1000);
+            })
+            .catch(() => {
+                document.getElementById('statusText').innerText = 'CAMERA DENIED';
+                document.getElementById('statusDot').classList.add('alert');
+            });
+
+        // Check face for access
+        async function checkFace() {
+            const video = document.getElementById('video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+
+            canvas.toBlob(async (blob) => {
+                const formData = new FormData();
+                formData.append('file', blob, 'capture.jpg');
+                formData.append('is_manual', 'false');
+
+                try {
+                    const res = await fetch(`${apiBaseUrl}/identify/`, { method: 'POST', body: formData });
+                    const data = await res.json();
+
+                    if (data.status === 'success' && data.matches.length > 0) {
+                        const match = data.matches[0];
+                        lastUsername = match.name;
+                        isLive = data.liveness?.is_live || false;
+
+                        document.getElementById('userLabel').innerText = match.name.toUpperCase();
+                        document.getElementById('livenessLabel').innerText = isLive ? '✓ LIVE' : '○ VERIFY';
+
+                        if (match.name !== 'Unknown' && isLive) {
+                            await unlockMessage(match.name, match.score, isLive);
+                        } else if (match.name !== 'Unknown') {
+                            updateStatus('warning', `${match.name} detected - blink to verify`);
+                        } else {
+                            lockMessage();
+                        }
+                    } else {
+                        document.getElementById('userLabel').innerText = 'NO FACE';
+                        document.getElementById('livenessLabel').innerText = '○ --';
+                        lockMessage();
+                    }
+                } catch (e) {
+                    console.error('Face check error:', e);
+                }
+            }, 'image/jpeg', 0.8);
+        }
+
+        // Unlock message
+        async function unlockMessage(username, score, live) {
+            if (currentToken) {
+                // Refresh existing token
+                try {
+                    const res = await fetch(`${apiBaseUrl}/private/refresh/${currentToken}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: `face_detected=true&username=${username}`
+                    });
+                    const data = await res.json();
+                    if (data.status === 'active') {
+                        updateStatus('active', `Access active for ${username}`);
+                        return;
+                    }
+                } catch (e) { }
+            }
+
+            // Get demo message or create one
+            const messageId = new URLSearchParams(window.location.search).get('id') || 'demo';
+
+            const formData = new URLSearchParams();
+            formData.append('username', username);
+            formData.append('face_score', score);
+            formData.append('is_live', live);
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/private/unlock/${messageId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.status === 'unlocked') {
+                    currentToken = data.token;
+                    document.getElementById('messageTitle').innerText = data.title;
+                    document.getElementById('messageContent').innerText = data.content;
+                    document.getElementById('messageCard').classList.remove('locked');
+                    updateStatus('active', `Unlocked for ${username}`);
+                } else {
+                    updateStatus('alert', data.reason || 'Access denied');
+                }
+            } catch (e) {
+                console.error('Unlock error:', e);
+            }
+        }
+
+        // Lock message
+        function lockMessage() {
+            currentToken = null;
+            document.getElementById('messageCard').classList.add('locked');
+            updateStatus('warning', 'Face required to access');
+        }
+
+        // Update status
+        function updateStatus(state, text) {
+            const dot = document.getElementById('statusDot');
+            dot.className = 'dot ' + state;
+            document.getElementById('statusText').innerText = text;
+        }
+
+        // Create new message
+        async function createMessage() {
+            const title = document.getElementById('newTitle').value || 'Private Message';
+            const users = document.getElementById('newUsers').value || 'anish';
+            const content = document.getElementById('newContent').value || 'No content';
+
+            const formData = new URLSearchParams();
+            formData.append('title', title);
+            formData.append('allowed_users', users);
+            formData.append('content', content);
+
+            try {
+                const res = await fetch(`${apiBaseUrl}/private/create`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: formData
+                });
+                const data = await res.json();
+                document.getElementById('createResult').innerHTML =
+                    `✓ Created! <a href="?id=${data.message_id}" style="color: var(--primary);">View Message</a>`;
+            } catch (e) {
+                document.getElementById('createResult').innerText = 'Error creating message';
+            }
+        }
+    </script>
+</body>
+
+</html>
