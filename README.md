@@ -1,16 +1,28 @@
-# Biometric Access Control & Security Terminal v2.0
+# Biometric Access Control & Security Terminal v3.0 (Development Finished)
 
-A professional-grade face authentication system built with **FastAPI**, **InsightFace Buffalo-L**, and real-time WebRTC. Features multi-image enrollment, gallery management API, and automated security breach logging.
+A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control.
+
+> **Status**: ✅ Development Finished | v3.0 Stable
+> **Latest Feature**: Admin Panel & Multimodal Fusion
 
 ## 🚀 Key Features
 
-* **InsightFace Buffalo-L Model**: State-of-the-art face recognition with 600K identity training
-* **Multi-Image Enrollment API**: Upload multiple face images via REST API for robust matching
-* **Gallery Management**: List, delete, and rebuild face galleries via API
-* **Expression-Robust Recognition**: Top-5 averaging handles smiling/neutral variations
-* **Manual Verification & Alarm**: Triggers audio alarm when unauthorized subjects attempt verification
-* **Security Dashboard**: View timestamped snapshots of unauthorized access attempts
-* **CLAHE Preprocessing**: Adaptive histogram equalization for variable lighting
+### 🛡️ Multi-Modal Security
+*   **Face Recognition**: InsightFace Buffalo-L model (600K identity training).
+*   **Voice Authentication**: SpeechBrain ECAPA-TDNN speaker verification.
+*   **Liveness Detection**: Real-time blink eye tracking to prevent photo spoofing.
+*   **Fusion Logic**: Adaptive scoring combines face + voice probabilities for high-confidence matches.
+
+### 👮 Admin & Monitoring
+*   **Admin Panel**: Secured dashboard to view stats, logs, and captured images.
+*   **Security Logs**: Automated logging of all authorized/unauthorized attempts.
+*   **Unauthorized Capture**: Automatically saves images of failed access attempts.
+*   **Private User Messages**: Securely deliver messages to specific users upon authentication.
+
+### ⚙️ advanced Tech
+*   **Windows Docker Fix**: Custom port mapping (8001:8000) to bypass known Windows networking bugs.
+*   **Expression-Robust**: Top-5 averaging handles smiling/neutral variations.
+*   **CLAHE Preprocessing**: Adaptive histogram equalization for variable lighting.
 
 ---
 
@@ -18,11 +30,11 @@ A professional-grade face authentication system built with **FastAPI**, **Insigh
 
 | Component | Technology |
 |-----------|------------|
-| **AI Model** | InsightFace Buffalo-L (w600k_r50) |
-| **Backend** | FastAPI + SQLAlchemy |
-| **Frontend** | Vanilla JS with HTML5 Canvas |
-| **Database** | SQLite |
-| **Container** | Docker Compose |
+| **AI Models** | InsightFace (Face) + SpeechBrain (Voice) |
+| **Backend** | FastAPI + SQLAlchemy + TensorFlow Lite |
+| **Frontend** | Vanilla JS + WebRTC + Chart.js |
+| **Database** | SQLite (Local Secure Storage) |
+| **Container** | Docker Compose (Optimized for Windows) |
 
 ---
 
@@ -30,80 +42,55 @@ A professional-grade face authentication system built with **FastAPI**, **Insigh
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/identify/` | POST | Identify face from image |
-| `/enroll/` | POST | Enroll new images (multi-file) |
-| `/gallery/` | GET | List all enrolled users |
-| `/gallery/{user}` | DELETE | Remove user from gallery |
-| `/gallery/rebuild` | POST | Rebuild gallery from database folder |
+| `/identify/` | POST | Multi-modal identification (Face + Voice + Liveness) |
+| `/admin/logs` | GET | Retrieve security logs (Admin only) |
+| `/admin/stats` | GET | System statistics (Admin only) |
+| `/enroll/` | POST | Enroll new users/voices |
+| `/gallery/rebuild` | POST | Rebuild embeddings gallery |
 
 ---
 
 ## 🚦 Getting Started
 
 ### 1. Prerequisites
+*   **Docker Desktop** (WSL2 backend recommended)
+*   **Git LFS** (for large model files)
 
-* **Docker Desktop** (WSL2 backend recommended)
-* **Git LFS** (for large model files)
-
-### 2. Setup Gallery
-
-Place images in `database/<username>/`:
-```
-database/
-├── Anish/
-│   ├── pic1.jpg
-│   ├── smile.jpg
-│   └── glasses.jpg
-└── Sayani/
-    └── pic1.jpg
-```
+### 2. Setup Database
+Place user images in `database/<username>/` and voice samples (optional) in `database/<username>/voice/`.
 
 ### 3. Deploy
-
 ```bash
 docker compose up --build
 ```
 
 ### 4. Access
-
-* **Live Scanner**: http://localhost:3000
-* **Security Log**: http://localhost:3000/security.html
-* **API Docs**: http://localhost:8000/docs
+*   **Live Scanner**: http://localhost:3000
+*   **Admin Panel**: http://localhost:3000/admin.html
+    *   *Default User*: `admin`
+    *   *Default Pass*: `admin123`
+*   **API Docs**: http://localhost:8001/docs
 
 ---
 
 ## 🔧 Configuration
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| Threshold | 0.45 | Minimum similarity for authentication |
-| Confidence Gap | 0.03 | Required gap between top 2 candidates |
-| Top-K Average | 5 | Number of best matches to average |
-
----
-
-## 📸 Enrollment via API
-
-```bash
-# Add smiling photos to improve accuracy
-curl -X POST http://localhost:8000/enroll/ \
-  -F "username=Anish" \
-  -F "files=@smile1.jpg" \
-  -F "files=@smile2.jpg"
-```
+| Setting | Value | Description |
+|---------|-------|-------------|
+| **Face Threshold** | 0.30 | Lowered for better recall with multi-modal fusion |
+| **Voice Weight** | 0.25 | Booster weight for voice match |
+| **Liveness** | Blink | Required for "Live" status |
+| **Backend Port** | 8001 | Mapped to 8000 internally to fix Windows port hanging |
 
 ---
 
 ## 🛡️ Security Features
-
-* **Green Box**: Authenticated user (score ≥ 45%)
-* **Red Box**: Unknown subject
-* **🔊 Audio Alarm**: Plays 3x when manual verify triggered on unauthorized subject
-* **📸 Snapshot**: Unauthorized attempts saved to `/unauthorized_attempts/`
+*   **Green Box**: Authenticated (Face + Voice + Life)
+*   **Red Box**: Unknown subject
+*   **🔊 Audio Alarm**: Triggers on unauthorized manual verification
+*   **📸 Evidence**: Unauthorized images saved to `unauthorized_attempts/`
 
 ---
 
 ## ⚖️ License
-
 MIT License
