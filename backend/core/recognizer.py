@@ -2,16 +2,18 @@ import numpy as np
 from db.crud import get_all_gallery
 
 class Recognizer:
-    def __init__(self, threshold=0.50, confidence_gap=0.03):
+    def __init__(self, threshold=0.45, confidence_gap=0.03, min_score=0.35):
         """
         Enhanced recognizer with confidence gap requirement.
         
         Args:
-            threshold: Minimum similarity score to accept (0.50)
+            threshold: Minimum similarity score to accept (0.45)
             confidence_gap: Minimum difference between top 2 candidates (3%)
+            min_score: Absolute minimum score to even consider a match (0.35)
         """
         self.threshold = threshold
         self.confidence_gap = confidence_gap
+        self.min_score = min_score
         self.gallery = []
 
     def load_gallery(self):
@@ -23,6 +25,11 @@ class Recognizer:
         except Exception as e:
             print(f"⚠️  Gallery not ready yet: {e}")
             self.gallery = []
+
+    def reload_gallery(self):
+        """Force reload gallery from database (used after enrollment)."""
+        self.gallery = []
+        self.load_gallery()
 
     def identify(self, probe_emb):
         """
@@ -55,12 +62,12 @@ class Recognizer:
         if not user_scores:
             return "Unknown", 0.0
 
-        # 2. Aggregate scores per user (Top-3 average with fewer embeddings now)
+        # 2. Aggregate scores per user (Top-5 average for robust expression handling)
         user_final_scores = {}
         for username, scores in user_scores.items():
             scores.sort(reverse=True)
-            # Take average of top 3 scores (or all if less than 3)
-            top_k = min(3, len(scores))
+            # Take average of top 5 scores (or all if less than 5)
+            top_k = min(5, len(scores))
             user_final_scores[username] = float(np.mean(scores[:top_k]))
 
         # 3. Get top 2 candidates
