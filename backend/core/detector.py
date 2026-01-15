@@ -20,12 +20,10 @@ class FaceDetector:
 
     def detect(self, image):
         """
+        IMPORTANT: Input image MUST be in RGB format (not BGR)!
         Returns: box (y1, x1, y2, x2), keypoints (for alignment)
         """
-        # MediaPipe expects RGB
-        # image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # Assuming input is BGR
-        # The input image from utils.image.read_image is already RGB
-
+        # MediaPipe expects RGB - the image should already be converted by utils.image.read_image
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         detection_result = self.detector.detect(mp_image)
 

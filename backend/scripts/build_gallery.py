@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from core.detector import FaceDetector
 from core.embedder import FaceEmbedder
-from db.crud import create_gallery_entry, clear_gallery
+from db.crud import create_gallery_entry, clear_gallery, create_voice_entry, clear_voice_gallery
 from utils.image import crop_box
 from utils.allignment import align_face
 
@@ -14,6 +14,15 @@ try:
 except ImportError:
     print("⚠️  Image quality module not found, skipping quality checks")
     QUALITY_CHECK_ENABLED = False
+
+# Import voice embedder (optional - falls back to face-only if unavailable)
+VOICE_ENABLED = False
+try:
+    from core.voice_embedder import get_voice_embedder
+    VOICE_ENABLED = True
+except Exception as e:
+    print(f"⚠️  Voice embedder not available: {e}")
+    print("   System will run in face-only mode")
 
 detector = FaceDetector()
 embedder = FaceEmbedder()
@@ -30,6 +39,43 @@ def apply_clahe(img):
     img_bgr = cv2.cvtColor(img_clahe, cv2.COLOR_LAB2BGR)
     
     return img_bgr
+
+def build_voice_gallery(database_root="/app/database"):
+    """Build voice gallery from audio files in user directories."""
+    if not VOICE_ENABLED:
+        print("⚠️  Voice embedder not available, skipping voice gallery")
+        return
+    
+    voice_embedder = get_voice_embedder()
+    if not voice_embedder.is_available():
+        print("⚠️  SpeechBrain model not loaded, skipping voice gallery")
+        return
+    
+    print("🎤 Building voice gallery...")
+    clear_voice_gallery()
+    
+    users = [d for d in os.listdir(database_root) if os.path.isdir(os.path.join(database_root, d))]
+    
+    for user in users:
+        user_dir = os.path.join(database_root, user)
+        audio_files = [f for f in os.listdir(user_dir) if f.lower().endswith((".wav", ".mp3", ".m4a", ".flac"))]
+        
+        count = 0
+        for f in audio_files:
+            audio_path = os.path.join(user_dir, f)
+            
+            try:
+                emb = voice_embedder.embed(audio_path)
+                if emb is not None:
+                    create_voice_entry(user, emb)
+                    count += 1
+                else:
+                    print(f"⚠️  {user}/{f}: Failed to extract voice embedding")
+            except Exception as e:
+                print(f"⚠️  {user}/{f}: Error processing audio - {e}")
+        
+        if count > 0:
+            print(f"✅ User {user}: Stored {count} voice templates")
 
 def build_gallery(database_root="/app/database", min_quality=0.25):
     """
@@ -95,4 +141,6 @@ def build_gallery(database_root="/app/database", min_quality=0.25):
         print(f"✅ User {user}: Stored {count} templates (skipped: {skipped_detection} no-face, {skipped_quality} low-quality)")
 
 def build_gallery_on_startup():
+    """Build both face and voice galleries on startup."""
     build_gallery("/app/database", min_quality=0.20)
+    build_voice_gallery("/app/database")

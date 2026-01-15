@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8">
-    <title>Biometric Access Terminal</title>
+    <title>Multi-Modal Biometric Gateway v3.0</title>
     <link
         href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap"
         rel="stylesheet">
@@ -11,6 +11,7 @@
         :root {
             --primary: #00e676;
             --alert: #ff5252;
+            --warning: #ffc107;
             --bg: #0a0a0a;
             --scan: #00bcd4;
             --text: #e0e0e0;
@@ -57,6 +58,8 @@
             display: flex;
             gap: 12px;
             margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
         }
 
         .btn {
@@ -70,6 +73,7 @@
             font-weight: 500;
             border-radius: 4px;
             transition: all 0.2s ease;
+            text-decoration: none;
         }
 
         .btn:hover {
@@ -83,6 +87,15 @@
 
         .btn-alert:hover {
             background: rgba(255, 82, 82, 0.1);
+        }
+
+        .btn-private {
+            border-color: var(--scan);
+            color: var(--scan);
+        }
+
+        .btn-private:hover {
+            background: rgba(0, 188, 212, 0.1);
         }
 
         .scanner-container {
@@ -196,7 +209,7 @@
             font-size: 10px;
             color: var(--scan);
             z-index: 6;
-            opacity: 0.6;
+            opacity: 0.8;
         }
 
         .hud-top {
@@ -207,6 +220,18 @@
         .hud-time {
             top: 12px;
             right: 50px;
+        }
+
+        .hud-liveness {
+            bottom: 12px;
+            left: 50px;
+            font-size: 12px;
+        }
+
+        .hud-voice {
+            bottom: 12px;
+            right: 50px;
+            font-size: 12px;
         }
 
         .status-panel {
@@ -233,6 +258,10 @@
             background: var(--alert);
         }
 
+        .status-dot.warning {
+            background: var(--warning);
+        }
+
         @keyframes pulse {
 
             0%,
@@ -249,19 +278,55 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.8rem;
             letter-spacing: 1px;
+            flex: 1;
+        }
+
+        /* Feature badges */
+        .feature-badges {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .badge {
+            padding: 5px 12px;
+            font-size: 0.7rem;
+            border-radius: 20px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .badge-active {
+            background: rgba(0, 230, 118, 0.2);
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .badge-warning {
+            background: rgba(255, 193, 7, 0.2);
+            color: var(--warning);
+            border: 1px solid var(--warning);
+        }
+
+        .badge-info {
+            background: rgba(0, 188, 212, 0.2);
+            color: var(--scan);
+            border: 1px solid var(--scan);
         }
     </style>
 </head>
 
 <body>
     <div class="header">
-        <h1>BIOMETRIC GATEWAY</h1>
-        <div class="subtitle">INSIGHTFACE v2.0 • SECURE ACCESS TERMINAL</div>
+        <h1>MULTI-MODAL BIOMETRIC GATEWAY</h1>
+        <div class="subtitle">v3.0 • FACE + VOICE + LIVENESS • ENTERPRISE SECURITY</div>
     </div>
 
     <div class="controls">
         <button id="captureBtn" class="btn">📸 Manual Verify</button>
-        <a href="security.html" class="btn btn-alert" style="text-decoration: none;">⚠ Security Log</a>
+        <a href="private_viewer.html" class="btn btn-private">🔐 Private Messages</a>
+        <a href="security.html" class="btn btn-alert">⚠ Security Log</a>
     </div>
 
     <div class="scanner-container">
@@ -273,13 +338,21 @@
             <div class="corner corner-tr"></div>
             <div class="corner corner-bl"></div>
             <div class="corner corner-br"></div>
-            <div class="hud hud-top">SYS:ONLINE</div>
+            <div class="hud hud-top">SYS:MULTIMODAL v3.0</div>
             <div class="hud hud-time" id="hudTime">00:00:00</div>
+            <div class="hud hud-liveness" id="livenessStatus">👁 LIVENESS: DETECTING...</div>
+            <div class="hud hud-voice" id="voiceStatus">🎤 VOICE: STANDBY</div>
         </div>
         <div class="status-panel">
             <div class="status-dot" id="statusDot"></div>
             <div id="status">INITIALIZING...</div>
         </div>
+    </div>
+
+    <div class="feature-badges">
+        <span class="badge badge-active" id="faceBadge">👤 FACE: READY</span>
+        <span class="badge badge-warning" id="livenessBadge">👁 LIVENESS: WAIT</span>
+        <span class="badge badge-info" id="voiceBadge">🎤 VOICE: STANDBY</span>
     </div>
 
     <audio id="alarmSound" src="https://www.soundjay.com/buttons/beep-07.mp3" preload="auto"></audio>

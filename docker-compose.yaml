@@ -3,9 +3,9 @@ services:
     build: ./backend
     container_name: face-auth-backend
     ports:
-      - "8000:8000"
+      - "8001:8000"
     volumes:
-      - ./backend:/app              # Fixes the 'main' import by putting backend files in /app
+      - ./backend:/app # Fixes the 'main' import by putting backend files in /app
       - ./face_auth.db:/app/face_auth.db
       - ./models:/app/models
       - ./config:/app/config
@@ -21,7 +21,7 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules  # <--- Add this line exactly
+      - /app/node_modules # <--- Add this line exactly
     depends_on:
       - backend
     restart: always
