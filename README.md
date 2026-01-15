@@ -1,11 +1,11 @@
-# Biometric Access Control & Security Terminal v3.1.0
+# Biometric Access Control & Security Terminal v3.2.0
 
 [![CI](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
 
 A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control.
 
-> **Status**: ✅ Development Stable | v3.1.0
-> **Latest Feature**: CI/CD Pipeline with Pytest Testing
+> **Status**: ✅ Development Stable | v3.2.0
+> **Latest Feature**: Softmax Probability Classification with Adaptive Thresholds
 
 
 ## 🚀 Key Features

@@ -63,6 +63,61 @@ def calculate_ear(eye_landmarks):
     return (v1 + v2) / (2.0 * h)
 
 
+def assess_face_quality(face_img, det_score=1.0):
+    """
+    Assess face image quality to reject low-quality captures.
+    
+    Args:
+        face_img: RGB face image (cropped)
+        det_score: Face detection confidence score
+    
+    Returns:
+        (quality_score, rejection_reason) - quality 0-1, reason is None if acceptable
+    """
+    h, w = face_img.shape[:2]
+    
+    # Size check - face should be at least 80x80 pixels
+    if h < 80 or w < 80:
+        return 0.0, "Face too small (minimum 80x80 pixels)"
+    
+    # Convert to grayscale for analysis
+    if len(face_img.shape) == 3:
+        gray = cv2.cvtColor(face_img, cv2.COLOR_RGB2GRAY)
+    else:
+        gray = face_img
+    
+    # Blur detection using Laplacian variance
+    # Low variance = blurry image
+    blur_score = cv2.Laplacian(gray, cv2.CV_64F).var()
+    if blur_score < 50:
+        return 0.1, f"Image too blurry (score: {blur_score:.1f}, min: 50)"
+    
+    # Brightness check - mean pixel value
+    brightness = np.mean(gray)
+    if brightness < 40:
+        return 0.2, f"Image too dark (brightness: {brightness:.1f}, min: 40)"
+    if brightness > 220:
+        return 0.2, f"Image too bright (brightness: {brightness:.1f}, max: 220)"
+    
+    # Contrast check - standard deviation of pixel values
+    contrast = np.std(gray)
+    if contrast < 25:
+        return 0.3, f"Low contrast (std: {contrast:.1f}, min: 25)"
+    
+    # Detection confidence check
+    if det_score < 0.6:
+        return 0.4, f"Low detection confidence ({det_score:.2f}, min: 0.6)"
+    
+    # Calculate overall quality score
+    blur_quality = min(1.0, blur_score / 200)  # Normalize blur (200 = excellent)
+    size_quality = min(1.0, (h * w) / (150 * 150))  # Normalize size
+    det_quality = det_score
+    
+    quality_score = 0.4 * blur_quality + 0.3 * size_quality + 0.3 * det_quality
+    
+    return quality_score, None
+
+
 def check_liveness(img_rgb, session_id="default"):
     """
     Check if the face is live using blink detection.

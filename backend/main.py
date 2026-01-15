@@ -11,9 +11,9 @@ from db.session import init_db
 from scripts.build_gallery import build_gallery_on_startup
 
 app = FastAPI(
-    title="Multi-Modal Face Authentication System",
-    description="Face + voice recognition with liveness detection and face-gated messaging",
-    version="3.1.0"
+    title="Face Auth Backend",
+    version="3.2.0",  # v3.2.0: Softmax classification, adaptive thresholds, negative sampling
+    description="Multi-modal biometric authentication with face, voice, and liveness detection"
 )
 
 app.add_middleware(
@@ -34,14 +34,14 @@ async def health_check():
     return {
         "status": "healthy",
         "service": "face-auth-backend",
-        "version": "3.1.0",
-        "features": ["face", "voice", "liveness", "private_messages"]
+        "version": "3.2.0",
+        "features": ["face", "voice", "liveness", "private_messages", "softmax_classification"]
     }
 
 
 @app.on_event("startup")
 def startup():
-    print("🚀 Starting Multi-Modal Face Auth System v3.0...")
+    print("🚀 Starting Multi-Modal Face Auth System v3.2.0...")
     
     # Initialize database
     print("📊 Initializing database...")

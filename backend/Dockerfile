@@ -20,6 +20,14 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=appuser:appuser . /app
 
+# Create models directory with correct ownership for SpeechBrain
+RUN mkdir -p /app/models/speechbrain && chown -R appuser:appuser /app/models
+
+# Set HuggingFace cache to user-accessible location
+ENV HF_HOME=/home/appuser/.cache/huggingface
+ENV HF_DATASETS_CACHE=/home/appuser/.cache/huggingface/datasets
+RUN mkdir -p /home/appuser/.cache/huggingface && chown -R appuser:appuser /home/appuser/.cache
+
 # Switch to non-root user
 USER appuser
 

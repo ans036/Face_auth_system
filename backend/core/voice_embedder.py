@@ -36,8 +36,12 @@ class VoiceEmbedder:
     Falls back gracefully if SpeechBrain is not installed.
     """
     
-    def __init__(self, model_dir: str = "/app/models/speechbrain"):
+    def __init__(self, model_dir: str = None):
         self.model = None
+        # Use home directory for cache if running as non-root
+        if model_dir is None:
+            home = os.path.expanduser("~")
+            model_dir = os.path.join(home, ".cache", "speechbrain")
         self.model_dir = model_dir
         self.embedding_dim = 192
         self.sample_rate = 16000
