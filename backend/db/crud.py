@@ -52,3 +52,35 @@ def clear_gallery():
         s.commit()
     finally:
         s.close()
+
+def get_gallery_stats():
+    """Get count of embeddings per user."""
+    s = SessionLocal()
+    try:
+        rows = s.query(Gallery).all()
+        stats = {}
+        for r in rows:
+            if r.username not in stats:
+                stats[r.username] = 0
+            stats[r.username] += 1
+        return stats
+    finally:
+        s.close()
+
+def delete_user_from_gallery(username: str):
+    """Delete all embeddings for a specific user."""
+    s = SessionLocal()
+    try:
+        s.query(Gallery).filter_by(username=username).delete()
+        s.commit()
+    finally:
+        s.close()
+
+def get_user_embeddings(username: str):
+    """Get all embeddings for a specific user."""
+    s = SessionLocal()
+    try:
+        rows = s.query(Gallery).filter_by(username=username).all()
+        return [np.frombuffer(r.embedding, dtype=np.float32) for r in rows]
+    finally:
+        s.close()
