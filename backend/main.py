@@ -12,7 +12,7 @@ from scripts.build_gallery import build_gallery_on_startup
 
 app = FastAPI(
     title="Face Auth Backend",
-    version="3.2.0",  # v3.2.0: Softmax classification, adaptive thresholds, negative sampling
+    version="3.3.0",  # v3.3.0: PostgreSQL + pgvector migration
     description="Multi-modal biometric authentication with face, voice, and liveness detection"
 )
 

@@ -144,6 +144,9 @@ class VoiceEmbedder:
         """
         Generate embedding from audio bytes (for API uploads).
         
+        OPTIMIZED: Uses BytesIO for WAV/MP3 to avoid temp file I/O.
+        Only uses temp files when ffmpeg conversion is required (webm).
+        
         Args:
             audio_bytes: Raw audio data
             format: Audio format (wav, mp3, webm)
@@ -154,6 +157,37 @@ class VoiceEmbedder:
         if not self.is_available():
             return None
         
+        import io
+        
+        # For WAV/MP3, try in-memory loading first (avoids temp file I/O)
+        if format.lower() in ("wav", "mp3"):
+            try:
+                audio_buffer = io.BytesIO(audio_bytes)
+                waveform, sample_rate = torchaudio.load(audio_buffer)
+                
+                # Convert to mono if stereo
+                if waveform.shape[0] > 1:
+                    waveform = torch.mean(waveform, dim=0, keepdim=True)
+                
+                # Resample to 16kHz if needed
+                if sample_rate != self.sample_rate:
+                    resampler = torchaudio.transforms.Resample(sample_rate, self.sample_rate)
+                    waveform = resampler(waveform)
+                
+                # Generate embedding
+                with torch.no_grad():
+                    embedding = self.model.encode_batch(waveform)
+                
+                emb = embedding.squeeze().cpu().numpy()
+                emb = emb / (np.linalg.norm(emb) + 1e-8)
+                
+                return emb.astype(np.float32)
+                
+            except Exception as e:
+                print(f"⚠️ In-memory audio loading failed, falling back to temp file: {e}")
+                # Fall through to temp file method
+        
+        # For webm or fallback: use temp files (ffmpeg conversion required)
         temp_path = None
         converted_path = None
         

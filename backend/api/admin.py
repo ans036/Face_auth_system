@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 import hashlib
 import secrets
 import os
+import time
 from sqlalchemy.orm import Session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -22,6 +23,58 @@ SESSIONS = {}
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "anish")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "floyd003")
 SECRET_KEY = os.getenv("SECRET_KEY", "face-auth-secret-key-change-in-production")
+
+
+# ============ LOG CACHE (OPTIMIZATION) ============
+class LogCache:
+    """Cache parsed log entries to avoid re-reading file on every request."""
+    
+    def __init__(self, ttl_seconds: int = 30):
+        self.ttl = ttl_seconds
+        self._cache = None
+        self._cache_time = 0
+        self._file_mtime = 0
+    
+    def get_parsed_logs(self, log_file: str) -> List[dict]:
+        """Get parsed log entries, using cache if valid."""
+        current_time = time.time()
+        
+        # Check if file was modified
+        try:
+            file_mtime = os.path.getmtime(log_file) if os.path.exists(log_file) else 0
+        except:
+            file_mtime = 0
+        
+        # Return cached data if still valid
+        if (self._cache is not None and 
+            current_time - self._cache_time < self.ttl and 
+            file_mtime == self._file_mtime):
+            return self._cache
+        
+        # Re-parse the log file
+        parsed = []
+        try:
+            if os.path.exists(log_file):
+                with open(log_file, "r") as f:
+                    for line in f.readlines():
+                        line = line.strip()
+                        if line:
+                            entry = parse_log_line(line)
+                            if entry:
+                                parsed.append(entry)
+        except Exception as e:
+            print(f"⚠️ Error parsing log cache: {e}")
+        
+        # Update cache
+        self._cache = parsed
+        self._cache_time = current_time
+        self._file_mtime = file_mtime
+        
+        return parsed
+
+
+# Global log cache instance
+_log_cache = LogCache(ttl_seconds=30)
 
 def hash_password(password: str) -> str:
     """Hash password with salt."""
@@ -135,29 +188,21 @@ async def get_auth_attempts(
     limit: int = 50,
     _: bool = Depends(require_admin)
 ):
-    """Get authentication attempts from logs."""
-    attempts = []
+    """Get authentication attempts from logs (uses cache for performance)."""
     log_file = "/app/security.log"
     
-    try:
-        if os.path.exists(log_file):
-            with open(log_file, "r") as f:
-                for line in f.readlines():
-                    line = line.strip()
-                    if not line:
-                        continue
-                    
-                    # Parse log format: [timestamp] | User: name | Score: X | Live: Y | Manual: Z
-                    attempt = parse_log_line(line)
-                    if attempt:
-                        if status == "authorized" and attempt.get("is_known"):
-                            attempts.append(attempt)
-                        elif status == "unauthorized" and not attempt.get("is_known"):
-                            attempts.append(attempt)
-                        elif status == "all" or status is None:
-                            attempts.append(attempt)
-    except Exception as e:
-        print(f"Error reading attempts: {e}")
+    # Use cached parsed logs
+    all_entries = _log_cache.get_parsed_logs(log_file)
+    
+    # Filter by status
+    attempts = []
+    for entry in all_entries:
+        if status == "authorized" and entry.get("is_known"):
+            attempts.append(entry)
+        elif status == "unauthorized" and not entry.get("is_known"):
+            attempts.append(entry)
+        elif status == "all" or status is None:
+            attempts.append(entry)
     
     # Return newest first
     return {"attempts": list(reversed(attempts[-limit:]))}

@@ -1,17 +1,44 @@
 services:
+  # PostgreSQL with pgvector extension for vector similarity search
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: face-auth-postgres
+    environment:
+      POSTGRES_USER: faceauth
+      POSTGRES_PASSWORD: faceauth_secret
+      POSTGRES_DB: face_auth
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U faceauth -d face_auth" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
   backend:
     build: ./backend
     container_name: face-auth-backend
     ports:
       - "8001:8000"
+    environment:
+      # PostgreSQL connection
+      DATABASE_URL: postgresql://faceauth:faceauth_secret@postgres:5432/face_auth
+      # Keep SQLite path for migration script
+      SQLITE_PATH: /app/face_auth.db
     volumes:
-      - ./backend:/app # Fixes the 'main' import by putting backend files in /app
+      - ./backend:/app
       - ./face_auth.db:/app/face_auth.db
       - ./models:/app/models
       - ./config:/app/config
       - ./database:/app/database
       - ./security.log:/app/security.log
       - ./unauthorized_attempts:/app/unauthorized_attempts
+    depends_on:
+      postgres:
+        condition: service_healthy
     restart: always
 
   frontend:
@@ -21,7 +48,10 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules # <--- Add this line exactly
+      - /app/node_modules
     depends_on:
       - backend
     restart: always
+
+volumes:
+  pgdata:

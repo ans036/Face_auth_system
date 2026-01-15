@@ -3,15 +3,20 @@ Multimodal Fusion Module
 Combines face and voice biometrics for robust authentication.
 
 Fusion Strategy: Score-level fusion with weighted average
-- Face: 60% weight (primary biometric)
-- Voice: 40% weight (secondary, optional)
+- Face: 85% weight (primary biometric)
+- Voice: 15% weight (secondary, optional)
 
-Fallback: Face-only if voice unavailable
+With pgvector: Uses native PostgreSQL similarity search (HNSW index)
+Fallback: In-memory numpy vectorized search
 """
 
 import numpy as np
 from typing import Dict, Optional, Tuple
-from db.crud import get_all_gallery, get_voice_gallery
+from db.crud import (
+    get_all_gallery, get_voice_gallery,
+    search_similar_faces_by_user, search_similar_voices_by_user
+)
+from db.models import USE_PGVECTOR
 
 
 class MultimodalAuthenticator:
@@ -50,24 +55,99 @@ class MultimodalAuthenticator:
         # Adaptive threshold flag
         self.thresholds_calibrated = False
     
+    def _parse_embedding(self, emb) -> np.ndarray:
+        """Convert embedding to numpy array (handles both bytes and array formats)."""
+        if isinstance(emb, bytes):
+            # SQLite format - bytes
+            return np.frombuffer(emb, dtype=np.float32).copy()
+        elif isinstance(emb, np.ndarray):
+            # Already numpy array (pgvector)
+            return emb.astype(np.float32)
+        else:
+            # List or other iterable (pgvector returns list-like)
+            return np.array(emb, dtype=np.float32)
+    
     def load_galleries(self):
-        """Load both face and voice galleries and calibrate thresholds."""
-        try:
-            self.face_gallery = get_all_gallery()
-            print(f"✅ Loaded {len(self.face_gallery)} face embeddings")
-        except Exception as e:
-            print(f"⚠️ Failed to load face gallery: {e}")
-            self.face_gallery = []
+        """Load both face and voice galleries, pre-parse embeddings, and calibrate thresholds."""
+        db_mode = "PostgreSQL+pgvector" if USE_PGVECTOR else "SQLite"
+        print(f"Loading galleries from {db_mode}...")
         
         try:
-            self.voice_gallery = get_voice_gallery()
-            print(f"✅ Loaded {len(self.voice_gallery)} voice embeddings")
+            raw_gallery = get_all_gallery()
+            # Pre-parse embeddings to numpy arrays
+            self.face_gallery = []
+            for entry in raw_gallery:
+                parsed_emb = self._parse_embedding(entry["embedding"])
+                self.face_gallery.append({
+                    "username": entry["username"],
+                    "embedding": parsed_emb
+                })
+            print(f"Loaded and parsed {len(self.face_gallery)} face embeddings")
+            
+            # Build optimized data structures for in-memory fallback
+            if not USE_PGVECTOR:
+                self._build_face_index()
+            else:
+                # With pgvector, we don't need in-memory index (DB handles it)
+                self._face_matrix = None
+                self._face_usernames = [e["username"] for e in self.face_gallery]
         except Exception as e:
-            print(f"⚠️ Voice gallery not available: {e}")
+            print(f"Failed to load face gallery: {e}")
+            self.face_gallery = []
+            self._face_matrix = None
+            self._face_usernames = []
+        
+        try:
+            raw_voice = get_voice_gallery()
+            # Pre-parse voice embeddings
             self.voice_gallery = []
+            for entry in raw_voice:
+                parsed_emb = self._parse_embedding(entry["embedding"])
+                self.voice_gallery.append({
+                    "username": entry["username"],
+                    "embedding": parsed_emb
+                })
+            print(f"Loaded and parsed {len(self.voice_gallery)} voice embeddings")
+            
+            # Build voice index for in-memory fallback
+            if not USE_PGVECTOR:
+                self._build_voice_index()
+            else:
+                self._voice_matrix = None
+                self._voice_usernames = [e["username"] for e in self.voice_gallery]
+        except Exception as e:
+            print(f"Voice gallery not available: {e}")
+            self.voice_gallery = []
+            self._voice_matrix = None
+            self._voice_usernames = []
         
         # Calibrate adaptive thresholds from gallery
         self.calibrate_thresholds()
+    
+    def _build_face_index(self):
+        """Build numpy matrix for vectorized face similarity computation."""
+        if not self.face_gallery:
+            self._face_matrix = None
+            self._face_usernames = []
+            return
+        
+        # Stack all embeddings into a single matrix for batch dot product
+        embeddings = [entry["embedding"] for entry in self.face_gallery]
+        self._face_matrix = np.vstack(embeddings)  # Shape: (n_embeddings, 512)
+        self._face_usernames = [entry["username"] for entry in self.face_gallery]
+        print(f"📊 Built face matrix: {self._face_matrix.shape}")
+    
+    def _build_voice_index(self):
+        """Build numpy matrix for vectorized voice similarity computation."""
+        if not self.voice_gallery:
+            self._voice_matrix = None
+            self._voice_usernames = []
+            return
+        
+        embeddings = [entry["embedding"] for entry in self.voice_gallery]
+        self._voice_matrix = np.vstack(embeddings)  # Shape: (n_embeddings, 192)
+        self._voice_usernames = [entry["username"] for entry in self.voice_gallery]
+        print(f"📊 Built voice matrix: {self._voice_matrix.shape}")
     
     def calibrate_thresholds(self):
         """Calculate adaptive thresholds from gallery embedding statistics."""
@@ -81,7 +161,7 @@ class MultimodalAuthenticator:
             user = entry["username"]
             if user == "Unknown":
                 continue  # Skip unknown/negative samples for calibration
-            emb = np.frombuffer(entry["embedding"], dtype=np.float32)
+            emb = entry["embedding"]  # Already numpy array (pre-parsed)
             if user not in user_embeddings:
                 user_embeddings[user] = []
             user_embeddings[user].append(emb)
@@ -170,19 +250,33 @@ class MultimodalAuthenticator:
         return {users[i]: float(probabilities[i]) for i in range(len(users))}
     
     def _get_face_scores(self, probe_emb: np.ndarray) -> Dict[str, float]:
-        """Get per-user face similarity scores."""
-        user_scores = {}
+        """
+        Get per-user face similarity scores.
         
-        for entry in self.face_gallery:
-            target_emb = np.frombuffer(entry["embedding"], dtype=np.float32)
-            score = float(np.dot(target_emb, probe_emb))
-            
-            username = entry["username"]
+        With pgvector: Uses native PostgreSQL similarity search (fast, uses HNSW)
+        Fallback: In-memory vectorized matrix multiplication
+        """
+        # Use native pgvector search if available
+        if USE_PGVECTOR:
+            try:
+                return search_similar_faces_by_user(probe_emb, limit_per_user=5)
+            except Exception as e:
+                print(f"\u26a0\ufe0f pgvector search failed, falling back to in-memory: {e}")
+        
+        # Fallback: In-memory vectorized search
+        if self._face_matrix is None or len(self._face_usernames) == 0:
+            return {}
+        
+        # Compute all similarities at once: (n_embeddings,) = (n, 512) @ (512,)
+        all_scores = self._face_matrix @ probe_emb
+        
+        # Aggregate scores by username (average top-5)
+        user_scores = {}
+        for i, username in enumerate(self._face_usernames):
             if username not in user_scores:
                 user_scores[username] = []
-            user_scores[username].append(score)
+            user_scores[username].append(float(all_scores[i]))
         
-        # Average top-5 scores per user
         final_scores = {}
         for username, scores in user_scores.items():
             scores.sort(reverse=True)
@@ -192,19 +286,33 @@ class MultimodalAuthenticator:
         return final_scores
     
     def _get_voice_scores(self, probe_emb: np.ndarray) -> Dict[str, float]:
-        """Get per-user voice similarity scores."""
-        user_scores = {}
+        """
+        Get per-user voice similarity scores.
         
-        for entry in self.voice_gallery:
-            target_emb = np.frombuffer(entry["embedding"], dtype=np.float32)
-            score = float(np.dot(target_emb, probe_emb))
-            
-            username = entry["username"]
+        With pgvector: Uses native PostgreSQL similarity search
+        Fallback: In-memory vectorized matrix multiplication
+        """
+        # Use native pgvector search if available
+        if USE_PGVECTOR:
+            try:
+                return search_similar_voices_by_user(probe_emb)
+            except Exception as e:
+                print(f"\u26a0\ufe0f pgvector voice search failed, falling back to in-memory: {e}")
+        
+        # Fallback: In-memory vectorized search
+        if self._voice_matrix is None or len(self._voice_usernames) == 0:
+            return {}
+        
+        # Compute all similarities at once
+        all_scores = self._voice_matrix @ probe_emb
+        
+        # Aggregate scores by username (average all)
+        user_scores = {}
+        for i, username in enumerate(self._voice_usernames):
             if username not in user_scores:
                 user_scores[username] = []
-            user_scores[username].append(score)
+            user_scores[username].append(float(all_scores[i]))
         
-        # Average all scores per user
         final_scores = {}
         for username, scores in user_scores.items():
             final_scores[username] = float(np.mean(scores))
