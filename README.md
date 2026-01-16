@@ -1,6 +1,10 @@
 # Biometric Access Control & Security Terminal v3.4.0
 
 [![CI - Run Tests](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
+[![Docker](https://img.shields.io/badge/Docker-ready-brightgreen.svg)](https://docker.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control. Now powered by **PostgreSQL + pgvector** for enterprise-scale performance.
 
@@ -59,6 +63,16 @@ graph TB
     VE --> PG
     PG --> HNSW
 ```
+
+---
+
+## 🎥 System Demo
+
+### Live Scanner Action
+![Live Demo](demo/Video%20Project.gif)
+
+### Face-Gated Secure Messages
+![Secure Messaging](demo/Video%20Project2.gif)
 
 ---
 
@@ -248,6 +262,7 @@ docker compose up --build
 *   **Green Box**: Authenticated (Face + Voice + Life)
 *   **Red Box**: Unknown subject
 *   **📸 Evidence**: Unauthorized images saved to `unauthorized_attempts/`
+*   **Security Log**: Automatically generated in `security.log`
 
 ---
 
@@ -283,6 +298,28 @@ python scripts/benchmark.py
 python scripts/biometric_evaluation.py  
 # → face_roc_curve.png, voice_roc_curve.png, biometric_evaluation_report.md
 ```
+
+---
+
+## 🔧 Quick Troubleshooting
+
+**Docker fails to start**
+- Ensure Docker Desktop is running with WSL2 backend based.
+- Run `docker compose down -v` to reset volumes (WARNING: clears database).
+
+**Models not loading**
+- Run `git lfs pull` to fetch large model files.
+- Check `backend/models/` directory has `.onnx` files.
+
+---
+
+## 🚀 Future Enhancements
+
+- [ ] Integration with LDAP/Active Directory
+- [ ] Mobile SDK for Android/iOS
+- [ ] Real-time analytics dashboard
+- [ ] Multi-language support for admin panel
+- [ ] REST API authentication with JWT
 
 ---
 
