@@ -84,18 +84,26 @@ graph TB
 | Voice Embedding | 2.47 ms | 2.56 ms | 2.62 ms |
 | Database Query (1K) | 1.71 ms | - | - |
 
-Run benchmarks yourself:
-```bash
-docker compose run --rm backend python scripts/benchmark.py
-# Output: backend/scripts/output/ (graphs + reports)
-```
+#### Scalability & Latency
+![Scalability Curve](backend/scripts/output/scalability_curve.png)
+*Figure 1: Query latency scaling (Log-Log plot). Postgres (Green) maintains constant time vs SQLite (Blue).*
+
+![DB Comparison](backend/scripts/output/db_comparison.png)
+*Figure 2: Database query latency comparison.*
 
 ### 📈 Biometric Accuracy (FAR/FRR)
 
 | Metric | Face | Voice |
 |--------|------|-------|
-| **EER** | ~5% | ~8% |
-| AUC | 0.98 | 0.95 |
+| **EER** | ~18% | ~21% |
+| AUC | 0.89 | 0.86 |
+
+#### ROC Curves
+<p float="left">
+  <img src="backend/scripts/output/face_roc_curve.png" width="45%" />
+  <img src="backend/scripts/output/voice_roc_curve.png" width="45%" /> 
+</p>
+*Figure 3: ROC Curves for Face Recognition (Left) and Voice Verification (Right).*
 
 Generate evaluation report:
 ```bash
