@@ -68,10 +68,10 @@ graph TB
 
 ## 🎥 System Demo
 
-### Live Scanner Action
+### Face-Gated Secure Messages
 ![Live Demo](demo/Video%20Project.gif)
 
-### Face-Gated Secure Messages
+### Live Scanner Action 
 ![Secure Messaging](demo/Video%20Project2.gif)
 
 ---
