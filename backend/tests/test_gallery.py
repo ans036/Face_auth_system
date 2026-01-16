@@ -17,7 +17,8 @@ class TestGalleryCRUD:
         username = "testuser"
         embedding = np.random.randn(512).astype(np.float32)
         
-        entry = Gallery(username=username, embedding=embedding.tobytes())
+        # Use list format for pgvector compatibility
+        entry = Gallery(username=username, embedding=embedding.tolist())
         test_session.add(entry)
         test_session.commit()
         
@@ -37,10 +38,10 @@ class TestGalleryCRUD:
         """Gallery with entries should return all entries."""
         from db.models import Gallery
         
-        # Add test entries
+        # Add test entries - use list format for pgvector
         for i in range(3):
             embedding = np.random.randn(512).astype(np.float32)
-            entry = Gallery(username=f"user{i}", embedding=embedding.tobytes())
+            entry = Gallery(username=f"user{i}", embedding=embedding.tolist())
             test_session.add(entry)
         test_session.commit()
         
@@ -51,12 +52,12 @@ class TestGalleryCRUD:
         """Should delete all entries for a specific user."""
         from db.models import Gallery
         
-        # Add entries for two users
+        # Add entries for two users - use list format for pgvector
         for i in range(2):
             embedding = np.random.randn(512).astype(np.float32)
-            test_session.add(Gallery(username="user_to_delete", embedding=embedding.tobytes()))
+            test_session.add(Gallery(username="user_to_delete", embedding=embedding.tolist()))
         embedding = np.random.randn(512).astype(np.float32)
-        test_session.add(Gallery(username="user_to_keep", embedding=embedding.tobytes()))
+        test_session.add(Gallery(username="user_to_keep", embedding=embedding.tolist()))
         test_session.commit()
         
         # Delete one user
@@ -72,13 +73,13 @@ class TestGalleryCRUD:
         """Should count embeddings per user correctly."""
         from db.models import Gallery
         
-        # Add entries: user1 has 3, user2 has 2
+        # Add entries: user1 has 3, user2 has 2 - use list format for pgvector
         for i in range(3):
             embedding = np.random.randn(512).astype(np.float32)
-            test_session.add(Gallery(username="user1", embedding=embedding.tobytes()))
+            test_session.add(Gallery(username="user1", embedding=embedding.tolist()))
         for i in range(2):
             embedding = np.random.randn(512).astype(np.float32)
-            test_session.add(Gallery(username="user2", embedding=embedding.tobytes()))
+            test_session.add(Gallery(username="user2", embedding=embedding.tolist()))
         test_session.commit()
         
         # Count per user
@@ -103,7 +104,8 @@ class TestVoiceGalleryCRUD:
         username = "testuser"
         embedding = np.random.randn(192).astype(np.float32)  # ECAPA-TDNN dimension
         
-        entry = VoiceGallery(username=username, embedding=embedding.tobytes())
+        # Use list format for pgvector compatibility
+        entry = VoiceGallery(username=username, embedding=embedding.tolist())
         test_session.add(entry)
         test_session.commit()
         
@@ -115,10 +117,10 @@ class TestVoiceGalleryCRUD:
         """Should retrieve all voice entries."""
         from db.models import VoiceGallery
         
-        # Add test entries
+        # Add test entries - use list format for pgvector
         for i in range(2):
             embedding = np.random.randn(192).astype(np.float32)
-            entry = VoiceGallery(username=f"voice_user{i}", embedding=embedding.tobytes())
+            entry = VoiceGallery(username=f"voice_user{i}", embedding=embedding.tolist())
             test_session.add(entry)
         test_session.commit()
         
@@ -140,3 +142,4 @@ class TestGalleryAPI:
         response = client.post("/gallery/rebuild")
         # Should not be 404
         assert response.status_code != 404
+

@@ -6,11 +6,13 @@ Features:
 - 192-dimensional speaker embeddings
 - 0.8% EER on VoxCeleb benchmark
 - Supports WAV and MP3 audio files
+- Voice Activity Detection (VAD) preprocessing
+- Noise reduction for improved accuracy
 """
 
 import numpy as np
 import os
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -33,11 +35,18 @@ class VoiceEmbedder:
     """
     Generates speaker embeddings using SpeechBrain ECAPA-TDNN.
     
-    Falls back gracefully if SpeechBrain is not installed.
+    Features:
+    - Falls back gracefully if SpeechBrain is not installed
+    - Optional preprocessing with VAD and noise reduction
+    - Audio quality assessment
     """
     
-    def __init__(self, model_dir: str = None):
+    def __init__(self, model_dir: str = None, use_preprocessing: bool = True):
         self.model = None
+        self.use_preprocessing = use_preprocessing
+        self.preprocessor = None
+        self.quality_assessor = None
+        
         # Use home directory for cache if running as non-root
         if model_dir is None:
             home = os.path.expanduser("~")
@@ -48,6 +57,70 @@ class VoiceEmbedder:
         
         if SPEECHBRAIN_AVAILABLE:
             self._init_model()
+        
+        # Initialize preprocessor if enabled
+        if use_preprocessing:
+            self._init_preprocessor()
+    
+    def _init_preprocessor(self):
+        """Initialize voice preprocessing components."""
+        try:
+            from core.voice_preprocessor import get_voice_preprocessor, get_audio_quality_assessor
+            self.preprocessor = get_voice_preprocessor()
+            self.quality_assessor = get_audio_quality_assessor()
+            print("✅ Voice preprocessor initialized (VAD + noise reduction)")
+        except ImportError as e:
+            print(f"⚠️ Voice preprocessor not available: {e}")
+            self.preprocessor = None
+            self.quality_assessor = None
+    
+    def _apply_preprocessing(self, waveform: 'torch.Tensor') -> Optional['torch.Tensor']:
+        """
+        Apply VAD and noise reduction to waveform.
+        
+        Args:
+            waveform: Input tensor (1, samples)
+            
+        Returns:
+            Processed tensor or None if audio fails quality checks
+        """
+        if self.preprocessor is None:
+            return waveform
+        
+        try:
+            # Convert to numpy for preprocessing
+            audio_np = waveform.squeeze().numpy().astype(np.float32)
+            
+            # Quality assessment (reject poor recordings early)
+            if self.quality_assessor is not None:
+                quality, reason = self.quality_assessor.assess(audio_np, self.sample_rate)
+                if reason is not None:
+                    print(f"⚠️ Audio quality check failed: {reason}")
+                    return None
+            
+            # Apply full preprocessing pipeline
+            processed, info = self.preprocessor.preprocess(
+                audio_np,
+                apply_vad=True,
+                apply_denoise=True,
+                apply_normalize=True
+            )
+            
+            if processed is None:
+                print(f"⚠️ Preprocessing failed: {info.get('error', 'Unknown error')}")
+                return None
+            
+            # Log preprocessing info
+            if "speech_duration" in info:
+                print(f"🎤 Preprocessed: {info['original_duration']:.1f}s → {info['speech_duration']:.1f}s speech")
+            
+            # Convert back to tensor
+            import torch
+            return torch.tensor(processed).unsqueeze(0)
+            
+        except Exception as e:
+            print(f"⚠️ Preprocessing error: {e}")
+            return waveform  # Fallback to unprocessed
     
     def _init_model(self):
         """Initialize the SpeechBrain ECAPA-TDNN model."""
@@ -140,16 +213,24 @@ class VoiceEmbedder:
             print(f"⚠️ Failed to generate voice embedding: {e}")
             return None
     
-    def embed_from_bytes(self, audio_bytes: bytes, format: str = "wav") -> Optional[np.ndarray]:
+    def embed_from_bytes(
+        self, 
+        audio_bytes: bytes, 
+        format: str = "wav",
+        apply_preprocessing: bool = True
+    ) -> Optional[np.ndarray]:
         """
         Generate embedding from audio bytes (for API uploads).
         
-        OPTIMIZED: Uses BytesIO for WAV/MP3 to avoid temp file I/O.
-        Only uses temp files when ffmpeg conversion is required (webm).
+        ENHANCED: Now includes optional preprocessing:
+        - Voice Activity Detection (removes silence)
+        - Noise reduction (cleans background noise)
+        - Quality assessment (rejects poor recordings)
         
         Args:
             audio_bytes: Raw audio data
             format: Audio format (wav, mp3, webm)
+            apply_preprocessing: Whether to apply VAD/denoising
             
         Returns:
             192-dimensional embedding or None
@@ -173,6 +254,13 @@ class VoiceEmbedder:
                 if sample_rate != self.sample_rate:
                     resampler = torchaudio.transforms.Resample(sample_rate, self.sample_rate)
                     waveform = resampler(waveform)
+                
+                # Apply preprocessing if enabled
+                if apply_preprocessing and self.preprocessor is not None:
+                    waveform = self._apply_preprocessing(waveform)
+                    if waveform is None:
+                        print("⚠️ Audio failed preprocessing (insufficient speech or quality)")
+                        return None
                 
                 # Generate embedding
                 with torch.no_grad():

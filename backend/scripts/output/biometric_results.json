@@ -1,0 +1,20 @@
+{
+  "face": {
+    "eer": 0.18894444444444444,
+    "eer_threshold": 0.0406586777668696,
+    "auc": 0.891354755555554,
+    "far_at_frr_01": 1.0,
+    "far_at_frr_1": 1.0,
+    "num_genuine_pairs": 2250,
+    "num_impostor_pairs": 10000
+  },
+  "voice": {
+    "eer": 0.21675,
+    "eer_threshold": 0.057593385110030315,
+    "auc": 0.8678413999999998,
+    "far_at_frr_01": 1.0,
+    "far_at_frr_1": 1.0,
+    "num_genuine_pairs": 500,
+    "num_impostor_pairs": 10000
+  }
+}

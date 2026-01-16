@@ -1,6 +1,11 @@
 """
 Admin Panel API
 Provides authentication and management endpoints for administrators.
+
+Security features:
+- Bcrypt password hashing (no plaintext comparison)
+- Secure session tokens
+- HTTPOnly cookies
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Form, Request, Response
@@ -14,6 +19,14 @@ import os
 import time
 from sqlalchemy.orm import Session
 
+# Import bcrypt for password hashing
+try:
+    import bcrypt
+    BCRYPT_AVAILABLE = True
+except ImportError:
+    BCRYPT_AVAILABLE = False
+    print("[WARNING] bcrypt not available, using fallback SHA256 hashing")
+
 router = APIRouter(prefix="/admin", tags=["admin"])
 
 # Simple session store (in production, use Redis or database)
@@ -21,8 +34,26 @@ SESSIONS = {}
 
 # Admin credentials from environment or defaults
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "anish")
-ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "floyd003")
+_ADMIN_PASSWORD_RAW = os.getenv("ADMIN_PASSWORD", "floyd003")
 SECRET_KEY = os.getenv("SECRET_KEY", "face-auth-secret-key-change-in-production")
+
+# Pre-hash the password at startup (in production, store hash in env/db)
+if BCRYPT_AVAILABLE:
+    # Generate hash once at startup
+    ADMIN_PASSWORD_HASH = bcrypt.hashpw(_ADMIN_PASSWORD_RAW.encode('utf-8'), bcrypt.gensalt())
+else:
+    # Fallback to SHA256 with salt
+    ADMIN_PASSWORD_HASH = hashlib.sha256((_ADMIN_PASSWORD_RAW + SECRET_KEY).encode()).hexdigest()
+
+
+def verify_password(plain_password: str) -> bool:
+    """Securely verify password using bcrypt or fallback."""
+    if BCRYPT_AVAILABLE:
+        return bcrypt.checkpw(plain_password.encode('utf-8'), ADMIN_PASSWORD_HASH)
+    else:
+        # Fallback SHA256
+        input_hash = hashlib.sha256((plain_password + SECRET_KEY).encode()).hexdigest()
+        return secrets.compare_digest(input_hash, ADMIN_PASSWORD_HASH)
 
 
 # ============ LOG CACHE (OPTIMIZATION) ============
@@ -112,29 +143,41 @@ class AttemptConfirmation(BaseModel):
 
 @router.post("/login")
 async def admin_login(response: Response, username: str = Form(...), password: str = Form(...)):
-    """Admin login endpoint."""
-    if username == ADMIN_USERNAME and password == ADMIN_PASSWORD:
-        # Create session
-        session_id = secrets.token_urlsafe(32)
-        SESSIONS[session_id] = {
-            "username": username,
-            "created": datetime.now(),
-            "expires": datetime.now() + timedelta(hours=8)
-        }
-        
-        # Set cookie and return success
-        response = JSONResponse(content={"status": "success", "message": "Login successful"})
-        response.set_cookie(
-            key="admin_session",
-            value=session_id,
-            httponly=True,
-            max_age=8*60*60  # 8 hours
-        )
-        return response
+    """
+    Admin login endpoint with secure password verification.
     
-    # Custom error message for non-admin or wrong password
-    msg = "Access denied - not an Admin" if username != ADMIN_USERNAME else "Invalid password"
-    raise HTTPException(status_code=401, detail=msg)
+    Security measures:
+    - Bcrypt password hashing (timing-attack resistant)
+    - Secure session token generation
+    - HTTPOnly cookies to prevent XSS
+    """
+    # Check username first (constant time comparison)
+    if not secrets.compare_digest(username, ADMIN_USERNAME):
+        raise HTTPException(status_code=401, detail="Access denied - not an Admin")
+    
+    # Verify password using bcrypt (timing-attack resistant)
+    if not verify_password(password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    # Create secure session
+    session_id = secrets.token_urlsafe(32)
+    SESSIONS[session_id] = {
+        "username": username,
+        "created": datetime.now(),
+        "expires": datetime.now() + timedelta(hours=8)
+    }
+    
+    # Set cookie and return success
+    response = JSONResponse(content={"status": "success", "message": "Login successful"})
+    response.set_cookie(
+        key="admin_session",
+        value=session_id,
+        httponly=True,
+        secure=False,  # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=8*60*60  # 8 hours
+    )
+    return response
 
 
 @router.get("/logout")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Form, UploadFile, File, Depends
+from fastapi import APIRouter, Form, UploadFile, File, Depends, Request
 from sqlalchemy.orm import Session
 from db.session import get_db
 from core.detector import FaceDetector
@@ -6,6 +6,7 @@ from core.embedder import FaceEmbedder
 from core.recognizer import Recognizer
 from core.voice_embedder import get_voice_embedder
 from core.multimodal import get_multimodal_authenticator
+from core.rate_limiter import identify_rate_limiter
 from utils.image import read_image, crop_box
 from utils.allignment import align_face
 import os
@@ -181,11 +182,13 @@ def check_liveness(img_rgb, session_id="default"):
 
 @router.post("/")
 async def identify(
+    request: Request,  # For rate limiter IP extraction
     file: UploadFile = File(...), 
     voice_sample: Optional[UploadFile] = File(None),
     is_manual: str = Form("false"),
     session_id: str = Form("default"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: bool = Depends(identify_rate_limiter.check)  # Rate limit: 30 req/min
 ):
     """
     Identify user using Multimodal Fusion (Face + Voice + Liveness).
