@@ -74,6 +74,14 @@ graph TB
 ### Live Scanner Action 
 ![Secure Messaging](demo/Video%20Project2.gif)
 
+### 🖥️ Admin Dashboard
+<p float="left">
+  <img src="demo/demo2.jpeg" width="45%" />
+  <img src="demo/demo3.jpeg" width="45%" />
+  <img src="demo/demo4.jpeg" width="45%" />
+  <img src="demo/demo5.jpeg" width="45%" />
+</p>
+
 ---
 
 ## 🚀 Key Features
