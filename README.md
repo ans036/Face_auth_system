@@ -237,13 +237,13 @@ docker compose up --build
 | **DB Backend** | Postgres | Automatic fallback to SQLite if unavailable |
 | **Face Weight** | 0.85 | Primary biometric factor |
 | **Voice Weight** | 0.15 | Secondary booster factor |
-| **Rate Limit** | 30/min | Per-IP request limit |
+| **Rate Limit** | 120/min | Per-IP request limit |
 | **Liveness** | Blink | Required for "Live" status |
 
 ---
 
 ## 🛡️ Security Features
-*   **Rate Limiting**: 30 requests/minute per IP with exponential backoff
+*   **Rate Limiting**: 120 requests/minute per IP with exponential backoff
 *   **Bcrypt Auth**: Secure password hashing for admin panel
 *   **Green Box**: Authenticated (Face + Voice + Life)
 *   **Red Box**: Unknown subject
