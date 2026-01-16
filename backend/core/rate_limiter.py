@@ -204,8 +204,11 @@ class RateLimiter:
 
 
 # Singleton instance for the identify endpoint
+# Allow configuration via environment variables
+import os
+
 identify_rate_limiter = RateLimiter(
-    requests_per_minute=30,  # 30 requests per minute per IP
-    block_duration_seconds=60,  # 1 minute initial block
-    max_block_duration=3600  # Max 1 hour block
+    requests_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", 120)),  # Boosted default to 120/min
+    block_duration_seconds=int(os.getenv("RATE_LIMIT_BLOCK_SECONDS", 60)),
+    max_block_duration=int(os.getenv("RATE_LIMIT_MAX_BLOCK_SECONDS", 3600))
 )
