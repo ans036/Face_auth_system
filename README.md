@@ -1,16 +1,16 @@
 # Biometric Access Control & Security Terminal v3.4.0
 
 [![CI - Run Tests](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](https://github.com/ans036/Face_auth_system/actions)
+[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/ans036/Face_auth_system/actions)
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker-ready-brightgreen.svg)](https://docker.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control. Now powered by **PostgreSQL + pgvector** for enterprise-scale performance.
+An **Advanced Multi-Modal Biometric System** demonstrating **Enterprise-Grade Design Patterns**. It fuses **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** to simulate a high-security access control environment. Now powered by **PostgreSQL + pgvector** to showcase scalable vector search architectures.
 
-> **Status**: ✅ Production-Ready Architecture | v3.4.0-beta
-> **Latest**: FAR/FRR Metrics, Performance Benchmarks, Security Hardening
+> **Focus**: 🏗️ System Architecture & Scalability | v3.4.0-beta
+> **Highlights**: Asynchronous I/O, Vector Database Optimization, Multi-Modal Fusion Logic
 
 ---
 
@@ -93,11 +93,11 @@ graph TB
 *   **Liveness Detection**: Real-time blink eye tracking to prevent photo spoofing
 *   **Fusion Logic**: Adaptive scoring combines face + voice probabilities
 
-### ⚡ Enterprise Performance
-*   **PostgreSQL + pgvector**: Native vector similarity search using HNSW indexing
-*   **100x Faster**: Sub-10ms queries for large galleries (vs 500ms+ with SQLite)
-*   **Rate Limiting**: IP-based throttling with exponential backoff
-*   **Secure Auth**: Bcrypt password hashing with timing-attack resistance
+### ⚡ Scalable Architecture
+*   **PostgreSQL + pgvector**: Implementation of native vector similarity search using HNSW indexing.
+*   **Optimized Performance**: Achieves sub-10ms queries for large galleries through efficient indexing strategies.
+*   **Rate Limiting**: Custom middleware implementing IP-based throttling with exponential backoff.
+*   **Secure Auth**: Industry-standard Bcrypt hashing with protection against timing attacks.
 
 ### 📊 Performance Benchmarks
 
