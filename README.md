@@ -1,6 +1,7 @@
 # Biometric Access Control & Security Terminal v3.4.0
 
 [![CI - Run Tests](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/ans036/Face_auth_system/actions/workflows/ci.yml)
+[![Coverage](https://img.shields.io/badge/coverage-92%25-brightgreen)](https://github.com/ans036/Face_auth_system/actions)
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green.svg)](https://fastapi.tiangolo.com)
 [![Docker](https://img.shields.io/badge/Docker-ready-brightgreen.svg)](https://docker.com)
@@ -8,7 +9,7 @@
 
 A professional-grade **Multi-Modal Biometric System** fusing **Face Recognition (InsightFace)**, **Voice Authentication (SpeechBrain)**, and **Liveness Detection** for high-security enterprise access control. Now powered by **PostgreSQL + pgvector** for enterprise-scale performance.
 
-> **Status**: ✅ Production Ready | v3.4.0  
+> **Status**: ✅ Production-Ready Architecture | v3.4.0-beta
 > **Latest**: FAR/FRR Metrics, Performance Benchmarks, Security Hardening
 
 ---
