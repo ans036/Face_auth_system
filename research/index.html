@@ -1,0 +1,947 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>COSMIC Multimodal Fusion</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="COSMIC: a face and voice authentication system with a provably unique fused embedding, and the research on when multimodal fusion beats calibrated score fusion.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Serif:ital,wght@1,400&display=swap">
+<style>
+/* Layout: one long technical scroll. 1160px wrap, hairline-ruled sections, one surface band for the predictor.
+   Color encodes modality: face = blue, voice = orange, fused result = ink. */
+:root {
+  --bg: #F3F5F7;
+  --surface: #FCFDFD;
+  --ink: #0E1620;
+  --ink-2: #44505C;
+  --muted: #5F6C78;
+  --rule: #D8DEE4;
+  --rule-strong: #B4BEC8;
+  --code-bg: #E8ECF0;
+  --face: #2a78d6;
+  --voice: #eb6834;
+  --on-ink: #F7F9FA;
+  --font-display: "Archivo", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --font-math: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0C1015; --surface: #131920; --ink: #E7ECF1; --ink-2: #AEB8C2; --muted: #8A95A0;
+    --rule: #222B34; --rule-strong: #36424D; --code-bg: #18202A;
+    --face: #3987e5; --voice: #d95926; --on-ink: #0C1015;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0C1015; --surface: #131920; --ink: #E7ECF1; --ink-2: #AEB8C2; --muted: #8A95A0;
+  --rule: #222B34; --rule-strong: #36424D; --code-bg: #18202A;
+  --face: #3987e5; --voice: #d95926; --on-ink: #0C1015;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 4.5rem; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: 1rem; line-height: 1.6;
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+}
+img, video { max-width: 100%; height: auto; display: block; }
+[hidden] { display: none !important; }
+a { color: inherit; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+a:hover { text-decoration-thickness: 2px; }
+:focus-visible { outline: 2px solid var(--face); outline-offset: 3px; border-radius: 2px; }
+
+.wrap {
+  max-width: 1160px; margin-inline: auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.math { font-family: var(--font-math); font-style: italic; }
+.eyebrow {
+  font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--muted); margin: 0 0 0.75rem;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+h2 { font-size: clamp(1.75rem, 3.4vw, 2.5rem); font-stretch: 112%; font-weight: 700; line-height: 1.1; letter-spacing: -0.01em; }
+h3 { font-size: 1.25rem; font-stretch: 108%; font-weight: 650; line-height: 1.25; }
+p { margin: 0; }
+.lede { font-size: 1.125rem; color: var(--ink-2); max-width: 62ch; }
+.prose { display: grid; gap: 1rem; max-width: 66ch; color: var(--ink-2); }
+.prose strong { color: var(--ink); font-weight: 600; }
+
+/* --- top bar --- */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.topbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 9;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(1.2) blur(10px); -webkit-backdrop-filter: saturate(1.2) blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar .wrap { display: flex; align-items: center; gap: 1.5rem; min-height: 3.5rem; }
+.brand { font-family: var(--font-display); font-weight: 800; font-stretch: 125%; letter-spacing: 0.04em; text-decoration: none; font-size: 1rem; white-space: nowrap; }
+.nav { display: flex; gap: 1.25rem; overflow-x: auto; scrollbar-width: none; margin-left: auto; min-width: 0; }
+.nav::-webkit-scrollbar { display: none; }
+.nav a { font-size: 0.875rem; color: var(--ink-2); text-decoration: none; white-space: nowrap; padding-block: 0.25rem; }
+.nav a:hover { color: var(--ink); text-decoration: underline; }
+
+/* --- hero --- */
+.hero { padding-block: clamp(2.5rem, 6vw, 5rem) clamp(2rem, 4vw, 3rem); }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: clamp(2rem, 4vw, 4rem); align-items: center; }
+.hero h1 {
+  font-size: clamp(3.5rem, 6.2vw, 5.75rem); font-weight: 800; font-stretch: 125%;
+  line-height: 0.9; letter-spacing: -0.02em; margin-bottom: 1.25rem;
+}
+.hero .expand { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); letter-spacing: 0.02em; margin-bottom: 1.5rem; max-width: 46ch; }
+.hero .lede { margin-bottom: 2rem; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.btn {
+  display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.7rem 1.1rem;
+  font: 500 0.9375rem/1 var(--font-body); text-decoration: none; border-radius: 4px;
+  border: 1px solid var(--ink); background: transparent; color: var(--ink); cursor: pointer;
+}
+.btn:hover { text-decoration: none; background: color-mix(in srgb, var(--ink) 7%, transparent); }
+.btn.primary { background: var(--ink); color: var(--on-ink); }
+.btn.primary:hover { background: color-mix(in srgb, var(--ink) 86%, var(--bg)); }
+
+/* scanner frame: face-blue and voice-orange corner brackets, after the app's own HUD */
+.scanner { position: relative; padding: 14px; }
+.scanner img { border-radius: 2px; box-shadow: 0 1px 0 var(--rule), 0 18px 40px -24px rgba(0,0,0,0.45); }
+.scanner i { position: absolute; width: 34px; height: 34px; border: 0 solid; }
+.scanner .tl { top: 0; left: 0; border-top-width: 3px; border-left-width: 3px; border-color: var(--face); }
+.scanner .br { bottom: 0; right: 0; border-bottom-width: 3px; border-right-width: 3px; border-color: var(--face); }
+.scanner .tr { top: 0; right: 0; border-top-width: 3px; border-right-width: 3px; border-color: var(--voice); }
+.scanner .bl { bottom: 0; left: 0; border-bottom-width: 3px; border-left-width: 3px; border-color: var(--voice); }
+.scanner-fig figcaption { margin-top: 0.75rem; font-size: 0.8125rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.key { display: inline-flex; align-items: center; gap: 0.4rem; }
+.key::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+
+/* spec strip */
+.specs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--rule-strong); margin-top: clamp(2.5rem, 5vw, 4rem); }
+.spec { padding: 1rem 1.25rem 0 0; display: grid; gap: 0.25rem; align-content: start; }
+.spec + .spec { padding-left: 1.25rem; border-left: 1px solid var(--rule); }
+.spec b { font-family: var(--font-mono); font-weight: 500; font-size: 1.375rem; font-variant-numeric: tabular-nums; }
+.spec span { font-size: 0.8125rem; color: var(--muted); line-height: 1.45; }
+
+/* sections */
+section.block { padding-block: clamp(3.5rem, 7vw, 6rem); border-top: 1px solid var(--rule); }
+.head { display: grid; gap: 1rem; margin-bottom: clamp(2rem, 4vw, 3rem); }
+.band { background: var(--surface); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.band + section.block { border-top: 0; }
+
+/* pipeline */
+.pipeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
+.stage { padding: 1rem 1rem 1.25rem 0; display: grid; grid-template-rows: auto auto 1fr auto; gap: 0.5rem; position: relative; min-width: 0; }
+.stage + .stage { padding-left: 1rem; border-left: 1px solid var(--rule); }
+.stage .n { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); }
+.stage h3 { font-size: 1.0625rem; }
+.stage p { font-size: 0.875rem; color: var(--ink-2); line-height: 1.5; }
+.stage .ms { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.stage .ms em { font-style: normal; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.chip { display: inline-flex; align-items: center; gap: 0.35rem; font-family: var(--font-mono); font-size: 0.75rem; padding: 0.15rem 0.5rem; border: 1px solid var(--rule-strong); border-radius: 999px; }
+.chip::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
+.stage.out { background: var(--ink); color: var(--on-ink); padding-left: 1rem; border-left: 0; }
+.stage.out .n, .stage.out p, .stage.out .ms em { color: color-mix(in srgb, var(--on-ink) 72%, var(--ink)); }
+.stage.out .ms { color: var(--on-ink); }
+.pipe-note { margin-top: 1rem; font-size: 0.8125rem; color: var(--muted); }
+
+.media-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; margin-top: clamp(2.5rem, 5vw, 3.5rem); }
+.media-grid figure { margin: 0; display: grid; gap: 0.625rem; align-content: start; min-width: 0; }
+.media-grid video, .media-grid img { width: 100%; border-radius: 3px; border: 1px solid var(--rule); background: #0b0b0b; }
+.media-grid figcaption { font-size: 0.875rem; color: var(--ink-2); }
+.media-grid figcaption b { color: var(--ink); font-weight: 600; }
+.media-grid .wide { grid-column: 1 / -1; }
+
+.stack { margin-top: clamp(2.5rem, 5vw, 3.5rem); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 2rem; border-top: 1px solid var(--rule); padding-top: 1.5rem; }
+.stack dl { margin: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem 2rem; }
+.stack dt { font-family: var(--font-mono); font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.stack dd { margin: 0.2rem 0 0; font-size: 0.9375rem; }
+
+/* operator */
+.op-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
+.eq {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 1.25rem 1.5rem; display: grid; gap: 0.9rem; overflow-x: auto;
+}
+.eq .line { font-family: var(--font-math); font-style: italic; font-size: 1.125rem; white-space: nowrap; line-height: 1.5; }
+.eq .line .up { font-style: normal; font-family: var(--font-body); }
+.eq .big { font-size: 1.5rem; }
+.eq .tag { font-family: var(--font-mono); font-style: normal; font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.1rem; letter-spacing: 0.04em; }
+.frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; line-height: 1.2; margin-inline: 0.15em; }
+.frac > span:first-child { border-bottom: 1px solid currentColor; padding-inline: 0.2em; }
+.props { list-style: none; padding: 0; margin: 1.5rem 0 0; display: grid; gap: 1rem; }
+.props li { display: grid; grid-template-columns: 7.5rem minmax(0, 1fr); gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--rule); font-size: 0.9375rem; color: var(--ink-2); }
+.props li b { font-family: var(--font-display); font-stretch: 110%; color: var(--ink); font-weight: 650; }
+
+.flow { margin-top: 2rem; display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
+.flow .col { display: grid; gap: 0.5rem; min-width: 0; }
+.node { border: 1px solid var(--rule-strong); border-radius: 4px; padding: 0.5rem 0.625rem; background: var(--surface); min-width: 0; }
+.node b { display: block; font-weight: 600; font-size: 0.8125rem; }
+.node span { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--muted); }
+.node.face { border-left: 3px solid var(--face); }
+.node.voice { border-left: 3px solid var(--voice); }
+.node.ctx { border-left: 3px solid var(--rule-strong); }
+.node.out { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.node.out span { color: color-mix(in srgb, var(--on-ink) 70%, var(--ink)); }
+.arrow { color: var(--muted); font-family: var(--font-mono); }
+
+/* result panels */
+.regimes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(1.5rem, 3vw, 2.5rem); align-items: start; }
+.panel { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 1.25rem 1.25rem 1rem; display: grid; gap: 1rem; align-content: start; min-width: 0; }
+.panel h3 { font-size: 1.125rem; }
+.panel .sub { font-size: 0.8125rem; color: var(--muted); margin-top: 0.25rem; }
+.panel .verdict { font-size: 0.9375rem; color: var(--ink-2); border-top: 1px solid var(--rule); padding-top: 0.875rem; }
+.panel .verdict strong { color: var(--ink); }
+
+.dp { display: grid; gap: 0; }
+.dp-row { display: grid; grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr) 5.25rem; gap: 0.75rem; align-items: center; min-height: 2.6rem; }
+.dp-label { font-size: 0.8125rem; line-height: 1.25; color: var(--ink); }
+.dp-label small { display: block; color: var(--muted); font-size: 0.75rem; }
+.dp-track { position: relative; height: 2.6rem; }
+.dp-grid { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--rule); }
+.dp-ref { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px dashed var(--muted); }
+.dp-dot { position: absolute; top: 50%; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 2px var(--surface); }
+.dp-ghost { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; border: 1.5px solid var(--muted); background: var(--surface); }
+.dp-link { position: absolute; top: 50%; height: 0; border-top: 1px dotted var(--muted); }
+.dp-range { position: absolute; top: 50%; height: 6px; margin-top: -3px; background: var(--ink); border-radius: 3px; }
+.dp-val { font-family: var(--font-mono); font-size: 0.75rem; white-space: nowrap; text-align: right; color: var(--ink); font-variant-numeric: tabular-nums; }
+.dp-axis { display: grid; grid-template-columns: minmax(0, 10.5rem) minmax(0, 1fr) 5.25rem; gap: 0.75rem; }
+.dp-ticks { position: relative; height: 1.25rem; border-top: 1px solid var(--rule-strong); }
+.dp-ticks span { position: absolute; top: 0.2rem; transform: translateX(-50%); font-family: var(--font-mono); font-size: 0.6875rem; color: var(--muted); }
+.dp-axis-title { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--muted); text-align: right; padding-top: 0.2rem; }
+.dp-row.hl .dp-label { font-weight: 600; }
+
+.pull { margin-top: clamp(2rem, 4vw, 3rem); font-family: var(--font-display); font-stretch: 108%; font-weight: 600; font-size: clamp(1.25rem, 2.4vw, 1.625rem); line-height: 1.3; max-width: 38ch; text-wrap: balance; }
+
+/* predictor */
+.law-grid { display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr); gap: clamp(1.5rem, 3vw, 2.5rem); align-items: start; }
+.chart-card { background: var(--bg); border: 1px solid var(--rule); border-radius: 4px; padding: 1rem 1rem 0.5rem; min-width: 0; }
+.chart-top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.5rem; }
+.seg { display: inline-flex; border: 1px solid var(--rule-strong); border-radius: 4px; overflow: hidden; }
+.seg button { font: 500 0.8125rem/1 var(--font-body); padding: 0.5rem 0.75rem; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule-strong); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.readout { font-family: var(--font-mono); font-size: 0.8125rem; color: var(--ink); font-variant-numeric: tabular-nums; }
+.readout .math { font-size: 0.9375rem; }
+#law { position: relative; }
+#law svg { display: block; width: 100%; height: auto; overflow: visible; }
+#law text { font-family: var(--font-body); }
+.legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; font-size: 0.75rem; color: var(--muted); padding: 0.25rem 0 0.5rem; }
+.legend span { display: inline-flex; align-items: center; gap: 0.4rem; }
+.legend .f, .legend .h { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ink); }
+.legend .f { background: var(--ink); }
+.tip {
+  position: absolute; pointer-events: none; z-index: 2; min-width: 10rem;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--rule-strong); border-radius: 4px;
+  padding: 0.5rem 0.625rem; font-size: 0.8125rem; line-height: 1.4; box-shadow: 0 8px 24px -12px rgba(0,0,0,0.35);
+}
+.tip b { display: block; font-weight: 600; }
+.tip .row { display: flex; justify-content: space-between; gap: 1rem; font-family: var(--font-mono); font-size: 0.75rem; }
+.tip .row span:first-child { color: var(--muted); }
+.notes { display: grid; gap: 1.25rem; }
+.note { border-top: 1px solid var(--rule-strong); padding-top: 0.875rem; display: grid; gap: 0.375rem; }
+.note h3 { font-size: 1rem; }
+.note p { font-size: 0.9375rem; color: var(--ink-2); }
+
+details.tbl { margin-top: 1.25rem; }
+details.tbl summary { cursor: pointer; font-size: 0.875rem; color: var(--ink-2); }
+.scroll { overflow-x: auto; margin-top: 0.75rem; }
+table { border-collapse: collapse; width: 100%; font-size: 0.875rem; }
+th, td { text-align: left; padding: 0.5rem 0.75rem 0.5rem 0; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+th { font-family: var(--font-mono); font-weight: 500; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+td.num, th.num { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; padding-right: 1rem; }
+tr.group td { font-family: var(--font-mono); font-size: 0.6875rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding-top: 1rem; }
+
+.sweep { margin-top: clamp(3rem, 6vw, 4.5rem); display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: clamp(1.5rem, 3vw, 2.5rem); align-items: start; }
+.sweep table td { vertical-align: middle; }
+.bar-cell { width: 34%; min-width: 9rem; }
+.hbar { position: relative; height: 14px; }
+.hbar .zero { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--rule-strong); }
+.hbar .fill { position: absolute; top: 2px; height: 10px; background: var(--ink); border-radius: 0 3px 3px 0; }
+.hbar .fill.neg { border-radius: 3px 0 0 3px; }
+.bar-val { font-family: var(--font-mono); font-size: 0.75rem; font-variant-numeric: tabular-nums; display: block; margin-top: 0.2rem; color: var(--ink-2); }
+
+/* takeaways + limits */
+.rules { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1.25rem, 3vw, 2rem); }
+.rules li { border-top: 2px solid var(--ink); padding-top: 1rem; display: grid; gap: 0.5rem; align-content: start; }
+.rules li h3 { font-size: 1.125rem; }
+.rules li p { font-size: 0.9375rem; color: var(--ink-2); }
+.limits { margin-top: clamp(2.5rem, 5vw, 3.5rem); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); gap: 2rem; }
+.limits ul { margin: 0; padding-left: 1.1rem; display: grid; gap: 0.625rem; color: var(--ink-2); font-size: 0.9375rem; }
+
+/* run */
+.run-grid { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(1.5rem, 4vw, 3rem); align-items: start; }
+.code { position: relative; background: var(--code-bg); border: 1px solid var(--rule); border-radius: 4px; }
+.code pre { margin: 0; padding: 1rem 1.25rem; overflow-x: auto; font-family: var(--font-mono); font-size: 0.875rem; line-height: 1.7; }
+.code .c { color: var(--muted); }
+.copy { position: absolute; top: 0.5rem; right: 0.5rem; font: 500 0.75rem/1 var(--font-body); padding: 0.4rem 0.6rem; border-radius: 3px; border: 1px solid var(--rule-strong); background: var(--surface); color: var(--ink); cursor: pointer; }
+.endpoints { margin-top: 1rem; display: grid; gap: 0.25rem; font-size: 0.875rem; color: var(--ink-2); }
+.endpoints .mono { color: var(--ink); }
+.links { display: grid; gap: 0.75rem; }
+.link-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 1rem; align-items: center; padding: 1rem 0; border-top: 1px solid var(--rule); text-decoration: none; }
+.link-row:last-child { border-bottom: 1px solid var(--rule); }
+.link-row b { font-weight: 600; display: block; }
+.link-row span { font-size: 0.875rem; color: var(--muted); }
+.link-row .go { font-family: var(--font-mono); font-size: 0.875rem; color: var(--ink); }
+.link-row:hover b { text-decoration: underline; }
+
+footer { border-top: 1px solid var(--rule); padding-block: 2rem 3rem; font-size: 0.8125rem; color: var(--muted); }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 1rem; }
+
+/* responsive */
+@media (max-width: 1000px) {
+  .pipeline { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .stage:nth-child(4) { padding-left: 0; border-left: 0; }
+  .stage:nth-child(n+4) { border-top: 1px solid var(--rule); }
+  .stage.out { padding-left: 1rem; }
+  .law-grid, .sweep { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 820px) {
+  .hero-grid, .op-grid, .regimes, .run-grid, .stack, .limits { grid-template-columns: minmax(0, 1fr); }
+  .specs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .spec:nth-child(3) { padding-left: 0; border-left: 0; }
+  .spec:nth-child(n+3) { border-top: 1px solid var(--rule); margin-top: 1rem; }
+  .rules { grid-template-columns: minmax(0, 1fr); }
+  .media-grid { grid-template-columns: minmax(0, 1fr); }
+  .hero h1 { font-size: clamp(3.5rem, 16vw, 6rem); }
+  .nav { gap: 1rem; }
+}
+@media (max-width: 560px) {
+  .pipeline { grid-template-columns: minmax(0, 1fr); }
+  .stage, .stage + .stage { padding-left: 0; border-left: 0; }
+  .stage + .stage { border-top: 1px solid var(--rule); }
+  .stage.out { padding-left: 1rem; }
+  .flow { grid-template-columns: minmax(0, 1fr); }
+  .flow .arrow { transform: rotate(90deg); justify-self: center; }
+  .dp-row, .dp-axis { grid-template-columns: minmax(0, 7rem) minmax(0, 1fr) 4.5rem; gap: 0.5rem; }
+  .dp-val { font-size: 0.6875rem; }
+  .props li { grid-template-columns: minmax(0, 1fr); gap: 0.25rem; }
+  .stack dl { grid-template-columns: minmax(0, 1fr); }
+  .brand { font-size: 0.9375rem; }
+}
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top">COSMIC</a>
+    <nav class="nav" aria-label="Sections">
+      <a href="#system">System</a>
+      <a href="#operator">Operator</a>
+      <a href="#results">Results</a>
+      <a href="#predictor">Predictor</a>
+      <a href="#run">Try it</a>
+      <a href="https://github.com/ans036/Face_auth_system" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap hero">
+    <div class="hero-grid">
+      <div>
+        <p class="eyebrow">Face + voice authentication · research code</p>
+        <h1>COSMIC</h1>
+        <p class="expand">Categorical Optimal-equilibrium Sheaf-theoretic Multimodal Identity Correspondence</p>
+        <p class="lede">A face and voice authentication system built around a fusion operator with exactly one answer. Testing it honestly raised a broader question: when does learned multimodal fusion beat simply adding up calibrated scores?</p>
+        <div class="actions">
+          <a class="btn primary" href="https://ans036.github.io/Face_auth_system/">Try it live</a>
+          <a class="btn" href="#system">See the system</a>
+          <a class="btn" href="#results">Read the findings</a>
+        </div>
+      </div>
+      <figure class="scanner-fig" style="margin:0">
+        <div class="scanner">
+          <i class="tl"></i><i class="tr"></i><i class="bl"></i><i class="br"></i>
+          <img src="media/scanner-authenticated.jpg" width="1600" height="785" alt="The scanner UI after a successful login: a face box marked Authenticated, face and voice match scores of 63%, liveness verified, and an audit trail listing each pipeline stage.">
+        </div>
+        <figcaption>
+          <span>The live scanner after a granted login, with its audit trail.</span>
+          <span class="key" style="--c: var(--face)">face</span>
+          <span class="key" style="--c: var(--voice)">voice</span>
+        </figcaption>
+      </figure>
+    </div>
+
+    <div class="specs" role="list">
+      <div class="spec" role="listitem"><b>6.47%</b><span>verification EER, 449 identities, identity-disjoint cross-validation</span></div>
+      <div class="spec" role="listitem"><b>≈24 ms</b><span>liveness, deepfake and fusion stages end to end on ONNX Runtime</span></div>
+      <div class="spec" role="listitem"><b>ρ = 0.90</b><span>synergy predicts fusion gain across 5 real datasets (p = 0.037)</span></div>
+      <div class="spec" role="listitem"><b>158+</b><span>pytest tests across biometrics, enrollment, admin and liveness</span></div>
+    </div>
+  </div>
+
+  <!-- SYSTEM -->
+  <section class="block" id="system" aria-labelledby="system-h">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">The system</p>
+        <h2 id="system-h">Five checks between a camera and a decision</h2>
+        <p class="lede">Every login runs the same cascade. Cheap checks reject spoofs before any identity matching happens, and ambiguous scores escalate to a challenge instead of a guess.</p>
+      </div>
+
+      <ol class="pipeline">
+        <li class="stage">
+          <span class="n">Stage 0</span>
+          <h3>Liveness gate</h3>
+          <p>ViT-DINO classifier plus blink detection (eye aspect ratio) and frequency cues. Printed photos and screen replays stop here.</p>
+          <span class="ms">9.66 ms <em>· 85.9% acc.</em></span>
+        </li>
+        <li class="stage">
+          <span class="n">Stage 1</span>
+          <h3>Deepfake gate</h3>
+          <p>Frequency-domain GAN fingerprints and texture consistency, trained on FaceForensics++.</p>
+          <span class="ms">10.47 ms <em>· 85.9% val.</em></span>
+        </li>
+        <li class="stage">
+          <span class="n">Stage 2</span>
+          <h3>Embeddings</h3>
+          <p>InsightFace ArcFace for the face and SpeechBrain ECAPA-TDNN for the voice. Both backbones stay frozen.</p>
+          <span class="chips"><span class="chip" style="--c: var(--face)">512-d face</span><span class="chip" style="--c: var(--voice)">192-d voice</span></span>
+        </li>
+        <li class="stage">
+          <span class="n">Stage 3</span>
+          <h3>Fusion</h3>
+          <p>Face and voice evidence become one identity score, matched against a pgvector gallery.</p>
+          <span class="ms">2.78 ms <em>· ONNX</em></span>
+        </li>
+        <li class="stage">
+          <span class="n">Stage 4</span>
+          <h3>Step-up</h3>
+          <p>Confidence between 40% and 60% triggers a cognitive challenge about the live scene. An LLM checks the answer.</p>
+          <span class="ms"><em>only when unsure</em></span>
+        </li>
+        <li class="stage out">
+          <span class="n">Output</span>
+          <h3>Decision</h3>
+          <p>Granted, denied or 2FA required. Each stage writes a line to the audit trail.</p>
+          <span class="ms">GRANTED <em>/ DENIED / 2FA</em></span>
+        </li>
+      </ol>
+      <p class="pipe-note">Latencies are per stage as measured in the repository benchmarks. Accuracy figures: liveness on CelebA-Spoof, deepfake detection on a FaceForensics++ validation split.</p>
+
+      <div class="media-grid">
+        <figure>
+          <video src="media/demo-scanner.mp4" poster="media/demo-scanner-poster.jpg" width="1280" height="720" muted loop playsinline autoplay controls preload="metadata" aria-label="Screen recording of the live scanner identifying a face in real time"></video>
+          <figcaption><b>Live scanner.</b> Detection, liveness and identity update on every frame.</figcaption>
+        </figure>
+        <figure>
+          <video src="media/demo-messages.mp4" poster="media/demo-messages-poster.jpg" width="1280" height="720" muted loop playsinline autoplay controls preload="metadata" aria-label="Screen recording of private messages that unlock only after face verification"></video>
+          <figcaption><b>Face-gated messages.</b> Private notes unlock only for the verified recipient.</figcaption>
+        </figure>
+        <figure class="wide">
+          <img src="media/admin-dashboard.jpg" width="1400" height="690" alt="Security admin panel showing enrolled users, face and voice embedding counts, today's attempts, and a log of unauthorized attempts flagged Not Live." loading="lazy">
+          <figcaption><b>Admin panel.</b> Enrollment counts, daily attempts, and a security log of every rejected login with its liveness result.</figcaption>
+        </figure>
+      </div>
+
+      <div class="stack">
+        <div>
+          <p class="eyebrow">Engineering</p>
+          <h3>Runs as one Docker Compose stack</h3>
+        </div>
+        <dl>
+          <div><dt>API</dt><dd>FastAPI with async SQLAlchemy</dd></div>
+          <div><dt>Storage</dt><dd>PostgreSQL + pgvector, HNSW index; SQLite fallback</dd></div>
+          <div><dt>Inference</dt><dd>ONNX Runtime on CUDA, CPU fallback</dd></div>
+          <div><dt>Frontend</dt><dd>Next.js, TypeScript, Tailwind</dd></div>
+          <div><dt>Security</dt><dd>bcrypt admin login, per-IP rate limit of 120 requests a minute</dd></div>
+          <div><dt>Startup</dt><dd>Model warm-up on boot removes a ~4 s cold start</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <!-- OPERATOR -->
+  <section class="block" id="operator" aria-labelledby="operator-h">
+    <div class="wrap">
+      <div class="op-grid">
+        <div>
+          <div class="head">
+            <p class="eyebrow">The fusion operator</p>
+            <h2 id="operator-h">A fused identity with exactly one answer</h2>
+          </div>
+          <div class="prose">
+            <p>Most learned fusion layers (cross-attention, gated pooling, iterative equilibrium solvers) can land in different places depending on initialisation and solver settings. COSMIC defines the fused embedding as the minimiser of a <strong>strictly convex energy</strong>.</p>
+            <p>The matrix <span class="math">H</span> is positive definite by construction, so the minimiser exists, is unique, and has a closed form. The same face and voice always produce the same embedding, which is then projected to the unit sphere <span class="math">S</span><sup>63</sup>.</p>
+          </div>
+          <ul class="props">
+            <li><b>Unique</b><span>Independent of initialisation and of the solver. There is one answer to audit.</span></li>
+            <li><b>Closed form</b><span>No iterations at inference. One linear solve.</span></li>
+            <li><b>Certifiable</b><span>The map from features to logits is affine, so certified robustness radii are exact rather than estimated.</span></li>
+          </ul>
+        </div>
+        <div>
+          <div class="eq" role="group" aria-label="COSMIC equations">
+            <div class="line big"><span class="tag">Fused identity</span>I<sup>*</sup> <span class="up">=</span> <span class="up">argmin</span><sub>I</sub> &nbsp;<span class="up">½</span> I<sup>⊤</sup>HI <span class="up">−</span> b<sup>⊤</sup>I <span class="up">=</span> H<sup>−1</sup>b</div>
+            <div class="line"><span class="tag">Energy curvature (positive definite)</span>H <span class="up">=</span> W<sup>⊤</sup>W <span class="up">+</span> β<sup>2</sup>ρ<sub>f</sub><sup>⊤</sup>ρ<sub>f</sub> <span class="up">+</span> γ<sup>2</sup>ρ<sub>v</sub><sup>⊤</sup>ρ<sub>v</sub> <span class="up">+</span> εI <span class="up">≻ 0</span></div>
+            <div class="line"><span class="tag">Data term</span>b <span class="up">=</span> α f<sub>kan</sub> <span class="up">+</span> β<sup>2</sup>ρ<sub>f</sub><sup>⊤</sup>h<sub>f</sub> <span class="up">+</span> γ<sup>2</sup>ρ<sub>v</sub><sup>⊤</sup>h<sub>v</sub></div>
+            <div class="line"><span class="tag">Exact certified ℓ₂ radius</span>r(x) <span class="up">=</span> <span class="up">min</span><sub>j≠k</sub> <span class="frac"><span>ℓ<sub>k</sub>(x) <span class="up">−</span> ℓ<sub>j</sub>(x)</span><span>‖A<sub>:,k</sub> <span class="up">−</span> A<sub>:,j</sub>‖<sub>2</sub></span></span></div>
+          </div>
+          <div class="flow" aria-label="Data flow into the convex solver">
+            <div class="col">
+              <div class="node face"><b>Face h<sub>f</sub></b><span>ArcFace 512-d → KA-spline</span></div>
+              <div class="node voice"><b>Voice h<sub>v</sub></b><span>ECAPA 192-d → KA-spline</span></div>
+              <div class="node ctx"><b>Context</b><span>218-d → VIB → 64-d</span></div>
+            </div>
+            <span class="arrow" aria-hidden="true">→</span>
+            <div class="col">
+              <div class="node"><b>Data term b</b><span>cross-attention f<sub>kan</sub> + projections</span></div>
+            </div>
+            <span class="arrow" aria-hidden="true">→</span>
+            <div class="col">
+              <div class="node out"><b>I* = H⁻¹b</b><span>unit-normalised, 64-d</span></div>
+            </div>
+          </div>
+          <p class="pipe-note">On a 76%-accurate CREMA-D convex model, about 20% of samples are exactly certified at r ≥ 0.25 with no accuracy cost. Attention fusion has no closed-form certificate and needs randomised smoothing instead.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RESULTS -->
+  <section class="block" id="results" aria-labelledby="results-h">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">The honest test</p>
+        <h2 id="results-h">Then we checked it against the simplest baseline</h2>
+        <p class="lede">Calibrated score fusion fits a logistic log-likelihood ratio per modality and adds them. When the modalities are independent given the label, that sum is close to Bayes-optimal. We ran it against COSMIC and against naive learned fusions on two tasks at opposite ends.</p>
+      </div>
+
+      <div class="regimes">
+        <div class="panel">
+          <div>
+            <h3>Speaker verification</h3>
+            <p class="sub">449 identities · identity-disjoint CV · frozen ArcFace + ECAPA · EER, lower is better</p>
+          </div>
+          <div class="dp" id="dp-verif"></div>
+          <p class="verdict"><strong>Fusion ties.</strong> COSMIC and calibrated score fusion are a statistical tie. Concatenation and cross-attention overfit the training identities, and stay at 29 to 35% EER even with matched dropout, weight decay and spectral normalisation.</p>
+        </div>
+        <div class="panel">
+          <div>
+            <h3>Audio-visual emotion</h3>
+            <p class="sub">CREMA-D, 6 classes · speaker-independent 5-fold · WavLM + FER-ViT · accuracy, higher is better</p>
+          </div>
+          <div class="dp" id="dp-emo"></div>
+          <p class="verdict"><strong>Joint fusion wins by 6.2 points.</strong> Adding video lowers score fusion from 79.7% to 78.4% but raises joint fusion to 84.6–87.3%. Video only helps when the model sees both modalities together.</p>
+        </div>
+      </div>
+
+      <p class="pull">Same fusion methods, opposite outcomes. What changed between the two tasks is how much the modalities interact.</p>
+    </div>
+  </section>
+
+  <!-- PREDICTOR -->
+  <div class="band">
+    <section class="block" id="predictor" aria-labelledby="predictor-h" style="border-top:0">
+      <div class="wrap">
+        <div class="head">
+          <p class="eyebrow">The predictor · paper draft, 18 pages</p>
+          <h2 id="predictor-h">Measure synergy before you pay for learned fusion</h2>
+          <p class="lede">The fusion gain <span class="math">G</span> is joint-fusion accuracy minus calibrated score-fusion accuracy. The paper predicts it from the signed interaction information between the two modalities, computed from k-means cluster histograms of their embeddings. No fusion model is trained to get it.</p>
+        </div>
+
+        <div class="law-grid">
+          <div class="chart-card">
+            <div class="chart-top">
+              <div class="seg" role="group" aria-label="Datasets shown">
+                <button type="button" id="seg-all" aria-pressed="true">8 real datasets</button>
+                <button type="button" id="seg-primary" aria-pressed="false">5 primary</button>
+              </div>
+              <p class="readout" id="readout" aria-live="polite"></p>
+            </div>
+            <div id="law" role="img" aria-label="Scatter plot of signed interaction information against fusion gain for eight real datasets. Gender sits lowest at II −0.036 and G −7.4; emotion, CREMA-D intensity and language sit highest. Spearman rho is 0.76 over eight datasets and 0.90 over the five primary datasets."></div>
+            <div class="legend">
+              <span><i class="f"></i>primary dataset</span>
+              <span><i class="h"></i>robustness dataset</span>
+              <span>hover or tab to a point for values</span>
+            </div>
+          </div>
+
+          <div class="notes">
+            <div class="note">
+              <p class="eyebrow" style="margin:0">Estimator</p>
+              <p class="mono" style="color:var(--ink);font-size:1rem">II = I(a; v | y) − I(a; v)</p>
+              <p>Synergy minus redundancy. Positive values mean the label creates dependence between the modalities that neither carries alone.</p>
+            </div>
+            <div class="note">
+              <h3>Correlation is the wrong signal</h3>
+              <p>Face and voice both encode gender, so they correlate strongly. That information is redundant, and fusion makes gender recognition worse: 90.1% to 82.7%, a gain of −7.4 points.</p>
+            </div>
+            <div class="note">
+              <h3>It beat our own intuition</h3>
+              <p>We expected language to be redundant and AV-speech to be synergistic. The estimator ranked both correctly: language gains 7.6 points, while AV-speech is audio-dominated and gains 1.6.</p>
+            </div>
+            <div class="note">
+              <h3>Stable across seeds</h3>
+              <p>Each II is averaged over 15 k-means restarts and each G over 5 head initialisations. Single draws made the rank correlation swing between 0.37 and 0.83; averaged, the five-dataset ρ reproduces exactly.</p>
+            </div>
+          </div>
+        </div>
+
+        <details class="tbl">
+          <summary>Show the data as a table, including the synthetic controls</summary>
+          <div class="scroll">
+            <table>
+              <thead><tr><th>Dataset</th><th>Modality pair</th><th>Task</th><th class="num">II</th><th class="num">G (pp)</th></tr></thead>
+              <tbody>
+                <tr class="group"><td colspan="5">Synthetic controls · all 11 points ρ = 0.90, p &lt; 0.001</td></tr>
+                <tr><td>Redundant</td><td>—</td><td>—</td><td class="num">−1.79</td><td class="num">0.0</td></tr>
+                <tr><td>Partial</td><td>—</td><td>—</td><td class="num">+0.98</td><td class="num">+41.5</td></tr>
+                <tr><td>Synergy</td><td>—</td><td>—</td><td class="num">+1.77</td><td class="num">+82.2</td></tr>
+                <tr class="group"><td colspan="5">Primary real · ρ = 0.90, p = 0.037</td></tr>
+                <tr><td>MAV-Celeb gender</td><td>face + voice</td><td>gender</td><td class="num">−0.036</td><td class="num">−7.4</td></tr>
+                <tr><td>AV-MNIST</td><td>image + audio</td><td>digit</td><td class="num">−0.007</td><td class="num">+1.0</td></tr>
+                <tr><td>AV-speech</td><td>audio + video</td><td>sentence</td><td class="num">−0.001</td><td class="num">+1.6</td></tr>
+                <tr><td>Language</td><td>face + voice</td><td>language</td><td class="num">+0.009</td><td class="num">+7.6</td></tr>
+                <tr><td>Emotion (CREMA-D)</td><td>audio + video</td><td>emotion</td><td class="num">+0.037</td><td class="num">+5.8</td></tr>
+                <tr class="group"><td colspan="5">Robustness · ρ = 0.76 over all eight, p = 0.028</td></tr>
+                <tr><td>CREMA-D intensity</td><td>audio + video</td><td>intensity</td><td class="num">+0.039</td><td class="num">+5.2</td></tr>
+                <tr><td>RAVDESS intensity</td><td>audio + video</td><td>intensity</td><td class="num">+0.034</td><td class="num">+2.4</td></tr>
+                <tr><td>Hateful Memes</td><td>image + text</td><td>hate</td><td class="num">−0.001</td><td class="num">+0.6</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </details>
+
+        <div class="sweep">
+          <div class="head" style="margin:0">
+            <p class="eyebrow">Controlled sweep</p>
+            <h3 style="font-size:1.5rem">Synergy depends on the encoder, not only the task</h3>
+            <p class="prose" style="display:block">Same task (CREMA-D 12-way sentence recognition), same video encoder (FER-ViT). Only the audio encoder changes. As audio gets weaker, video becomes complementary, and measured synergy and fusion gain rise together (Spearman 0.80).</p>
+          </div>
+          <div class="scroll" style="margin:0">
+            <table id="sweep">
+              <thead><tr><th>Audio encoder</th><th class="num">Audio only</th><th>Synergy II</th><th>Gain G (pp)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- TAKEAWAYS -->
+  <section class="block" id="takeaways" aria-labelledby="takeaways-h">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Guidance</p>
+        <h2 id="takeaways-h">What we'd tell anyone building a multimodal system</h2>
+      </div>
+      <ul class="rules">
+        <li>
+          <h3>Always report calibrated score fusion</h3>
+          <p>Concatenation and uncalibrated softmax averaging are weak baselines. Against a properly calibrated score fusion, learned fusion often has nothing left to win.</p>
+        </li>
+        <li>
+          <h3>Match the encoder to the concept</h3>
+          <p>Identity encoders are trained to ignore expression. Swapping in WavLM and a FER-pretrained ViT took emotion accuracy from about 53% to 79.7%, then fusion added the last step to 87.3%.</p>
+        </li>
+        <li>
+          <h3>Measure synergy first</h3>
+          <p>II is cheap to compute from features and labels. If it is near zero or negative, a learned fusion layer is unlikely to beat summed scores.</p>
+        </li>
+      </ul>
+
+      <div class="limits">
+        <div>
+          <p class="eyebrow">Limitations</p>
+          <h3>What the evidence does not support</h3>
+        </div>
+        <ul>
+          <li>The convex operator's value is uniqueness and certifiability, not accuracy. It ties score fusion on verification and trails a plain concat-MLP on emotion (82.1% vs 87.3%).</li>
+          <li>Certified radii are exact but small, and they hold in embedding space, not pixel or waveform space.</li>
+          <li>The predictor orders tasks well but not perfectly. It is sharp at clear redundancy or clear synergy and blurs in the middle, where the intensity tasks swap rank with language.</li>
+          <li>Strong, cleanly exploitable synergy is scarce. About 15 tasks were screened, and several were excluded on criteria set beforehand: near-chance CMU-MOSI audio, saturated VoxCeleb identity, and RAVDESS emotion with only 8 actors.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- RUN -->
+  <section class="block" id="run" aria-labelledby="run-h">
+    <div class="wrap">
+      <div class="head">
+        <p class="eyebrow">Try it</p>
+        <h2 id="run-h">Use the real system in your browser</h2>
+        <p class="lede">No install. Enroll your face and voice in about 20 seconds, then log in on the live scanner. Requests run on the author's GPU, so the demo is available while that machine is online. Your embeddings stay tied to your browser and are deleted after an hour.</p>
+        <div class="actions"><a class="btn primary" href="https://ans036.github.io/Face_auth_system/">Open the live demo</a></div>
+      </div>
+      <div class="run-grid">
+        <div>
+          <p class="eyebrow">Or run it on your own machine</p>
+          <div class="code">
+            <button type="button" class="copy" id="copy-btn">Copy</button>
+<pre id="run-cmd"><span class="c"># put enrollment photos in database/&lt;name&gt;/</span>
+git clone https://github.com/ans036/Face_auth_system.git
+cd Face_auth_system
+git lfs pull
+docker compose up --build</pre>
+          </div>
+          <div class="endpoints">
+            <span>Scanner: <span class="mono">localhost:3000</span></span>
+            <span>Admin panel: <span class="mono">localhost:3000/admin</span></span>
+            <span>API docs: <span class="mono">localhost:8001/docs</span></span>
+          </div>
+        </div>
+        <div class="links">
+          <a class="link-row" href="https://github.com/ans036/Face_auth_system" target="_blank" rel="noopener">
+            <div><b>Source code</b><span>Backend, frontend, training and ablation scripts · MIT</span></div>
+            <span class="go">GitHub ↗</span>
+          </a>
+<!-- paper-pdf -->
+          <a class="link-row" href="paper/when-does-multimodal-fusion-help.pdf" target="_blank" rel="noopener">
+            <div><b>When Does Multimodal Fusion Help?</b><span>A modality-independence account, with a convex, certifiable fusion operator · draft PDF, 4.5 MB</span></div>
+            <span class="go">PDF ↗</span>
+          </a>
+<!-- /paper-pdf -->
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>COSMIC · MIT License</span>
+    <span>Results on this page come from the paper draft and the repository benchmarks.</span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- dot plots ---------- */
+  function dotplot(el, cfg) {
+    const pct = v => ((v - cfg.min) / (cfg.max - cfg.min)) * 100;
+    const frag = document.createDocumentFragment();
+    cfg.rows.forEach(r => {
+      const row = document.createElement("div");
+      row.className = "dp-row" + (r.hl ? " hl" : "");
+      const lab = document.createElement("div");
+      lab.className = "dp-label";
+      lab.textContent = r.label;
+      if (r.note) { const s = document.createElement("small"); s.textContent = r.note; lab.appendChild(s); }
+      const tr = document.createElement("div");
+      tr.className = "dp-track";
+      cfg.ticks.forEach(t => { const g = document.createElement("span"); g.className = "dp-grid"; g.style.left = pct(t) + "%"; tr.appendChild(g); });
+      if (cfg.ref != null) { const rf = document.createElement("span"); rf.className = "dp-ref"; rf.style.left = pct(cfg.ref) + "%"; tr.appendChild(rf); }
+      if (r.ghost != null) {
+        const a = Math.min(r.v, r.ghost), b = Math.max(r.v, r.ghost);
+        const ln = document.createElement("span"); ln.className = "dp-link";
+        ln.style.left = pct(a) + "%"; ln.style.width = (pct(b) - pct(a)) + "%"; tr.appendChild(ln);
+        const gh = document.createElement("span"); gh.className = "dp-ghost"; gh.style.left = pct(r.ghost) + "%";
+        gh.title = r.label + " with matched regularisation: " + r.ghost + cfg.unit; tr.appendChild(gh);
+      }
+      if (r.hi != null) {
+        const rg = document.createElement("span"); rg.className = "dp-range";
+        rg.style.left = pct(r.v) + "%"; rg.style.width = (pct(r.hi) - pct(r.v)) + "%"; tr.appendChild(rg);
+        const d2 = document.createElement("span"); d2.className = "dp-dot"; d2.style.left = pct(r.hi) + "%"; tr.appendChild(d2);
+      }
+      const d = document.createElement("span"); d.className = "dp-dot"; d.style.left = pct(r.v) + "%";
+      d.title = r.label + ": " + (r.hi != null ? r.v + "–" + r.hi : r.v) + cfg.unit; tr.appendChild(d);
+      const val = document.createElement("span"); val.className = "dp-val";
+      val.textContent = (r.hi != null ? r.v + "–" + r.hi : r.v.toFixed(r.dp != null ? r.dp : 1)) + cfg.unit;
+      row.append(lab, tr, val);
+      frag.appendChild(row);
+    });
+    const ax = document.createElement("div"); ax.className = "dp-axis";
+    const at = document.createElement("div"); at.className = "dp-axis-title"; at.textContent = cfg.axis;
+    const tk = document.createElement("div"); tk.className = "dp-ticks";
+    cfg.ticks.forEach(t => { const s = document.createElement("span"); s.style.left = pct(t) + "%"; s.textContent = t; tk.appendChild(s); });
+    ax.append(at, tk, document.createElement("span"));
+    frag.appendChild(ax);
+    el.appendChild(frag);
+  }
+
+  dotplot(document.getElementById("dp-verif"), {
+    min: 0, max: 40, ticks: [0, 10, 20, 30, 40], unit: "%", axis: "EER %",
+    rows: [
+      { label: "Calibrated score fusion", v: 6.98, dp: 2 },
+      { label: "COSMIC (convex)", v: 6.47, dp: 2, hl: true },
+      { label: "Cross-attention", note: "34.8 regularised", v: 25.1, ghost: 34.8 },
+      { label: "Concat MLP", note: "29.1 regularised", v: 38.1, ghost: 29.1 }
+    ]
+  });
+  dotplot(document.getElementById("dp-emo"), {
+    min: 65, max: 90, ticks: [65, 70, 75, 80, 85, 90], unit: "%", axis: "acc. %", ref: 79.7,
+    rows: [
+      { label: "Audio only (WavLM)", note: "dashed line", v: 79.7 },
+      { label: "Calibrated score fusion", v: 78.4 },
+      { label: "Naive late (softmax avg.)", v: 69.4 },
+      { label: "Cross-attention", v: 82.3 },
+      { label: "COSMIC (convex)", v: 82.1, hl: true },
+      { label: "Joint (concat MLP)", v: 84.6, hi: 87.3 }
+    ]
+  });
+
+  /* ---------- law scatter ---------- */
+  const LAW = [
+    { name: "Gender", short: "Gender", full: "MAV-Celeb gender", pair: "face + voice", ii: -0.0356, g: -7.35, primary: true, lab: [10, 4, "start"] },
+    { name: "AV-MNIST", short: "AV-MNIST", full: "AV-MNIST digits", pair: "image + audio", ii: -0.0074, g: 0.96, primary: true, lab: [-10, 4, "end"] },
+    { name: "AV-speech", short: "AV-speech", full: "AV-speech sentences", pair: "audio + video", ii: -0.0014, g: 1.56, primary: true, lab: [8, -10, "start"] },
+    { name: "Language", short: "Language", full: "Language (face + voice)", pair: "face + voice", ii: 0.0092, g: 7.60, primary: true, lab: [10, 4, "start"] },
+    { name: "Emotion", short: "Emotion", full: "CREMA-D emotion", pair: "audio + video", ii: 0.0372, g: 5.83, primary: true, lab: [-10, -6, "end"] },
+    { name: "Hateful Memes", short: "Memes", full: "Hateful Memes", pair: "image + text", ii: -0.0005, g: 0.60, primary: false, lab: [10, 16, "start"] },
+    { name: "CREMA-D intensity", short: "CREMA-D int.", full: "CREMA-D intensity", pair: "audio + video", ii: 0.0389, g: 5.17, primary: false, lab: [-10, 17, "end"] },
+    { name: "RAVDESS intensity", short: "RAVDESS int.", full: "RAVDESS intensity", pair: "audio + video", ii: 0.0342, g: 2.38, primary: false, lab: [-10, 4, "end"] }
+  ];
+  const STATS = {
+    all: '<span class="math">ρ</span> = 0.76 · p = 0.028 · n = 8',
+    primary: '<span class="math">ρ</span> = 0.90 · p = 0.037 · n = 5'
+  };
+  let mode = "all";
+  const host = document.getElementById("law");
+  const tip = document.createElement("div");
+  tip.className = "tip"; tip.hidden = true;
+  const NS = "http://www.w3.org/2000/svg";
+  const fmt = (v, d) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(d);
+
+  function el(tag, attrs, text) {
+    const n = document.createElementNS(NS, tag);
+    for (const k in attrs) n.setAttribute(k, attrs[k]);
+    if (text != null) n.textContent = text;
+    return n;
+  }
+
+  function drawLaw() {
+    const W = Math.max(300, host.clientWidth || 600);
+    const compact = W < 520;
+    const H = compact ? 340 : 410;
+    const m = { l: compact ? 40 : 52, r: 14, t: 14, b: 46 };
+    const x0 = -0.045, x1 = 0.05, y0 = -9, y1 = 10;
+    const X = v => m.l + ((v - x0) / (x1 - x0)) * (W - m.l - m.r);
+    const Y = v => m.t + ((y1 - v) / (y1 - y0)) * (H - m.t - m.b);
+    const fs = compact ? 11 : 12;
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, "aria-hidden": "true" });
+
+    [-0.04, -0.02, 0, 0.02, 0.04].forEach(t => {
+      svg.appendChild(el("line", { x1: X(t), x2: X(t), y1: m.t, y2: H - m.b, stroke: t === 0 ? "var(--rule-strong)" : "var(--rule)", "stroke-width": 1 }));
+      svg.appendChild(el("text", { x: X(t), y: H - m.b + 16, "text-anchor": "middle", "font-size": fs - 1, fill: "var(--muted)", "font-family": "var(--font-mono)" }, t === 0 ? "0" : fmt(t, 2)));
+    });
+    [-8, -4, 0, 4, 8].forEach(t => {
+      svg.appendChild(el("line", { x1: m.l, x2: W - m.r, y1: Y(t), y2: Y(t), stroke: t === 0 ? "var(--rule-strong)" : "var(--rule)", "stroke-width": 1 }));
+      svg.appendChild(el("text", { x: m.l - 8, y: Y(t) + 4, "text-anchor": "end", "font-size": fs - 1, fill: "var(--muted)", "font-family": "var(--font-mono)" }, t === 0 ? "0" : fmt(t, 0)));
+    });
+    svg.appendChild(el("text", { x: X(0) - 8, y: Y(-8.2), "text-anchor": "end", "font-size": fs - 1, fill: "var(--muted)" }, "← redundant"));
+    svg.appendChild(el("text", { x: X(0) + 8, y: Y(-8.2), "text-anchor": "start", "font-size": fs - 1, fill: "var(--muted)" }, "synergistic →"));
+    svg.appendChild(el("text", { x: (m.l + W - m.r) / 2, y: H - 6, "text-anchor": "middle", "font-size": fs, fill: "var(--ink-2)" }, "Signed interaction II"));
+    const yt = el("text", { x: 0, y: 0, "text-anchor": "middle", "font-size": fs, fill: "var(--ink-2)", transform: `translate(${compact ? 11 : 13}, ${(m.t + H - m.b) / 2}) rotate(-90)` }, "Fusion gain G (pp)");
+    svg.appendChild(yt);
+
+    const order = LAW.slice().sort((a, b) => a.primary - b.primary);
+    order.forEach(p => {
+      const off = mode === "primary" && !p.primary;
+      const g = el("g", { tabindex: off ? -1 : 0, role: "button", "aria-label": `${p.full}: II ${fmt(p.ii, 3)}, G ${fmt(p.g, 1)} points`, style: `cursor:pointer;opacity:${off ? 0.18 : 1};transition:opacity .25s` });
+      g.appendChild(el("circle", { cx: X(p.ii), cy: Y(p.g), r: 14, fill: "transparent" }));
+      g.appendChild(el("circle", {
+        cx: X(p.ii), cy: Y(p.g), r: 6,
+        fill: p.primary ? "var(--ink)" : "var(--bg)",
+        stroke: p.primary ? "var(--bg)" : "var(--ink)",
+        "stroke-width": 2
+      }));
+      if (!off) {
+        g.appendChild(el("text", {
+          x: X(p.ii) + p.lab[0], y: Y(p.g) + p.lab[1], "text-anchor": p.lab[2],
+          "font-size": fs, fill: "var(--ink)"
+        }, compact ? p.short : p.name));
+      }
+      const show = () => {
+        if (off) return;
+        tip.innerHTML = `<b>${p.full}</b><div class="row"><span>pair</span><span>${p.pair}</span></div><div class="row"><span>II</span><span>${fmt(p.ii, 4)}</span></div><div class="row"><span>G</span><span>${fmt(p.g, 2)} pp</span></div><div class="row"><span>set</span><span>${p.primary ? "primary" : "robustness"}</span></div>`;
+        tip.hidden = false;
+        const hw = host.clientWidth, px = X(p.ii) * (hw / W), py = Y(p.g) * (hw / W);
+        const tw = tip.offsetWidth, th = tip.offsetHeight;
+        let left = px + 14, top = py - th - 10;
+        if (left + tw > hw) left = px - tw - 14;
+        if (left < 0) left = 4;
+        if (top < 0) top = py + 14;
+        tip.style.left = left + "px"; tip.style.top = top + "px";
+      };
+      const hide = () => { tip.hidden = true; };
+      g.addEventListener("mouseenter", show); g.addEventListener("mouseleave", hide);
+      g.addEventListener("focus", show); g.addEventListener("blur", hide);
+      g.addEventListener("click", show);
+      svg.appendChild(g);
+    });
+
+    host.replaceChildren(svg, tip);
+    document.getElementById("readout").innerHTML = STATS[mode];
+  }
+
+  function setMode(next) {
+    mode = next;
+    document.getElementById("seg-all").setAttribute("aria-pressed", String(mode === "all"));
+    document.getElementById("seg-primary").setAttribute("aria-pressed", String(mode === "primary"));
+    drawLaw();
+  }
+  document.getElementById("seg-all").addEventListener("click", () => setMode("all"));
+  document.getElementById("seg-primary").addEventListener("click", () => setMode("primary"));
+  drawLaw();
+  let rz;
+  window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(drawLaw, 120); });
+  if (window.ResizeObserver) {
+    let lastW = 0;
+    new ResizeObserver(entries => {
+      const w = Math.round(entries[0].contentRect.width);
+      if (w && w !== lastW) { lastW = w; drawLaw(); }
+    }).observe(host);
+  }
+
+  /* ---------- encoder sweep ---------- */
+  const SWEEP = [
+    { enc: "WavLM", dim: "2048-d", acc: 98.9, ii: -0.004, g: 1.6 },
+    { enc: "WavLM → random 48", dim: "48-d", acc: 95.8, ii: 0.027, g: 5.6 },
+    { enc: "eGeMAPS", dim: "88-d prosody", acc: 81.0, ii: 0.058, g: 4.1 },
+    { enc: "ECAPA-TDNN", dim: "192-d speaker ID", acc: 61.4, ii: 0.107, g: 9.9 }
+  ];
+  const iiMin = -0.01, iiMax = 0.11, gMax = 10;
+  const tb = document.querySelector("#sweep tbody");
+  SWEEP.forEach(s => {
+    const zero = ((0 - iiMin) / (iiMax - iiMin)) * 100;
+    const at = ((s.ii - iiMin) / (iiMax - iiMin)) * 100;
+    const left = Math.min(zero, at), width = Math.abs(at - zero);
+    const tr = document.createElement("tr");
+    tr.innerHTML =
+      `<td><b style="font-weight:600">${s.enc}</b><span class="bar-val" style="margin:0">${s.dim}</span></td>` +
+      `<td class="num">${s.acc.toFixed(1)}%</td>` +
+      `<td class="bar-cell"><div class="hbar" title="II ${fmt(s.ii, 3)}"><span class="zero" style="left:${zero}%"></span><span class="fill${s.ii < 0 ? " neg" : ""}" style="left:${left}%;width:${Math.max(width, 0.8)}%"></span></div><span class="bar-val">${fmt(s.ii, 3)}</span></td>` +
+      `<td class="bar-cell"><div class="hbar" title="G ${fmt(s.g, 1)} pp"><span class="zero" style="left:0"></span><span class="fill" style="left:0;width:${(s.g / gMax) * 100}%"></span></div><span class="bar-val">${fmt(s.g, 1)}</span></td>`;
+    tb.appendChild(tr);
+  });
+
+  /* ---------- videos respect reduced motion ---------- */
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.querySelectorAll("video[autoplay]").forEach(v => { v.removeAttribute("autoplay"); try { v.pause(); } catch (e) {} });
+  }
+
+  /* ---------- copy ---------- */
+  const btn = document.getElementById("copy-btn");
+  btn.addEventListener("click", () => {
+    const text = document.getElementById("run-cmd").innerText;
+    const done = () => { btn.textContent = "Copied"; setTimeout(() => { btn.textContent = "Copy"; }, 1600); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById("run-cmd"));
+      const sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+      btn.textContent = "Press Ctrl+C";
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
+  });
+})();
+</script>
+
+</body>
+</html>
